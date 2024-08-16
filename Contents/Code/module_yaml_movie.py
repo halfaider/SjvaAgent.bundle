@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 import os, traceback, json, urllib, re, unicodedata, random, time, io
-from .module_yaml_base import ModuelYamlBase
+from .module_yaml_base import ModuleYamlBase
 import yaml
 
-class ModuleYamlMovie(ModuelYamlBase):
+class ModuleYamlMovie(ModuleYamlBase):
     module_name = 'yaml_movie'
     
     def search(self, results, media, lang, manual, **kwargs):

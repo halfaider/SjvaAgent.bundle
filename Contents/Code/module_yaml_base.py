@@ -3,7 +3,7 @@ import os, traceback, json, urllib, re, unicodedata, time, urllib2
 from io import open
 from .agent_base import AgentBase
 
-class ModuelYamlBase(AgentBase):
+class ModuleYamlBase(AgentBase):
     
     def get_yaml_filepath(self, media, content_type):
         try:

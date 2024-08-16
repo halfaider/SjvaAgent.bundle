@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import os, traceback, json, urllib, re, unicodedata, random, time, io, urllib2
 from .agent_base import PutRequest
-from .module_yaml_base import ModuelYamlBase
+from .module_yaml_base import ModuleYamlBase
 import yaml
 
-class ModuleYamlShow(ModuelYamlBase):
+class ModuleYamlShow(ModuleYamlBase):
     module_name = 'yaml_show'
     
     def search(self, results, media, lang, manual, **kwargs):

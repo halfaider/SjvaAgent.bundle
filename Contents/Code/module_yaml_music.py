@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 import os, unicodedata, traceback, io, time, random
-from .module_yaml_base import ModuelYamlBase
+from .module_yaml_base import ModuleYamlBase
 import yaml
 from collections import defaultdict
 
-class ModuleYamlArtist(ModuelYamlBase):
+class ModuleYamlArtist(ModuleYamlBase):
     module_name = 'yaml_artist'
     
     def search(self, results, media, lang, manual, **kwargs):
@@ -74,7 +74,7 @@ class ModuleYamlArtist(ModuelYamlBase):
 
         
 
-class ModuleYamlAlbum(ModuelYamlBase):
+class ModuleYamlAlbum(ModuleYamlBase):
     module_name = 'yaml_album'
     
     def search(self, results, media, lang, manual, **kwargs):
@@ -176,7 +176,7 @@ class ModuleYamlAlbum(ModuelYamlBase):
                 track_key = track_media.id or index
                 if more_disc:
                     # 18 disc index 알수 있는 방법이 없음.
-                    cu = AgentBase.my_JSON_ObjectFromURL('http://127.0.0.1:32400/library/metadata/%s?includeChildren=1' % track_key)
+                    cu = self.my_JSON_ObjectFromURL('http://127.0.0.1:32400/library/metadata/%s?includeChildren=1' % track_key)
                     #Log(self.d(cu))
                     disc_index = cu['MediaContainer']['Metadata'][0]['parentIndex']
                 else:
