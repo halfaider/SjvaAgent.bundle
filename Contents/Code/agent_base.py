@@ -183,6 +183,7 @@ class AgentBase(object):
             
             for item in data['MediaContainer']['Directory']:
                 if item['key'] == section_id:
+                    Log("GET_KEY: %s", item)
                     return AgentBase.key_map[item['agent']]
         except Exception as e: 
             Log('Exception:%s', e)
@@ -656,9 +657,6 @@ class AgentBase(object):
                             thumb=self.get(extra, 'thumb', '')
                         )
                     )
-                    Log('111111111111111111111')
-                    Log(url)
-
             elif is_primary:
                 #Log(meta)
                 #meta.clear()
@@ -679,7 +677,22 @@ class AgentBase(object):
 
 
 
-
+    def get_code_from_folderpath(self, media):
+        # 2024.09.23 폴더명에서 정보얻기
+        # 카테고리는 char 무시. 영화:M, 쇼:F
+        try:
+            jsonpath = self.get_json_filepath(media)
+            foldername = os.path.basename(os.path.dirname(jsonpath))
+            Log('폴더명: %s', foldername)
+            match = re.search('[\[\{](?P<code>([a-zA-Z0-9]+)|(tmdb\-\d+)|(tvdb\-\d+))[\]\}]', foldername, re.IGNORECASE)
+            if match:
+                tmp = match.group('code')
+                code = tmp.replace('tmdb-', 'MT').replace('tvdb-', 'FU')
+                Log('get_code_from_folderpath: %s', code)
+                return code 
+        except Exception as exception: 
+            Log('Exception:%s', exception)
+            Log(traceback.format_exc())  
 
 
 

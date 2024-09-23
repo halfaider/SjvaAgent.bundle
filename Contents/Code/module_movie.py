@@ -7,6 +7,18 @@ class ModuleMovie(AgentBase):
     
     def search(self, results, media, lang, manual, **kwargs):
         try:
+            code = self.get_code_from_folderpath(media)
+            if code != None and code.startswith('M'):
+                if self.is_include_time_info(media):
+                    code = code + '|%s' % int(time.time())
+                meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
+                results.Append(meta)
+                return  
+        except Exception as exception: 
+            Log('Exception:%s', exception)
+            Log(traceback.format_exc())   
+
+        try:
             if manual and media.name is not None and (media.name.startswith('MD') or media.name.startswith('MT') or media.name.startswith('MN')):
                 code = media.name
                 if self.is_include_time_info(media):
@@ -14,7 +26,6 @@ class ModuleMovie(AgentBase):
                 meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
                 results.Append(meta)
                 return
-
 
             if self.is_read_json(media):
                 if manual:

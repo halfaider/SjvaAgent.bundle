@@ -8,6 +8,18 @@ class ModuleFtv(AgentBase):
     
     def search(self, results, media, lang, manual):
         try:
+            code = self.get_code_from_folderpath(media)
+            if code != None and code.startswith('MT'):
+                code = code.replace('MT', 'FT')
+            if code != None and code.startswith('F'):
+                meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
+                results.Append(meta)
+                return  
+        except Exception as exception: 
+            Log('Exception:%s', exception)
+            Log(traceback.format_exc())   
+
+        try:
             if manual and media.show is not None:
                 if media.show.startswith('K'):
                     return False

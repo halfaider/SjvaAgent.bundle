@@ -1,6 +1,17 @@
-VERSION = '2024.08.16'
+VERSION = '2024.09.23'
 
 """
+2024.09.23
+  폴더명에 코드가 있는 경우 사용
+  - 코드는 [] 아나 {} 안에 있어야 함.
+  - 지원코드. 
+    - FF에서 사용 코드. 모듈 char + site char + site ID
+    - tmdb-XXXXXX, tvdb-XXXXXX
+
+  예)  
+  영화: tmdb - [MT957452] {tmdb-698687} / 왓챠 - [MXmOPpNlO]
+  쇼:  tmdb - [FT116612] {tmdb-95557} / tvdb - [FU443951] {tvdb-434441}
+
 2024.08.16 by ocelot     
   - 멀티디스크 앨범 정보를 yaml 파일에서 가져올 시 발생하는 에러 수정
 
