@@ -170,6 +170,16 @@ def MediaObjectsForURL(url):
             elif mode in ['m3u8']:
                 prefs = get_prefs()
                 redirect_url = param
+                if redirect_url.startswith('http') == False:
+                    char = '&'
+                    if '?' not in redirect_url:
+                        char = '?'
+                    redirect_url = '{ddns}{redirect_url}{char}apikey={apikey}'.format(
+                        ddns = prefs['server'],
+                        redirect_url = redirect_url,
+                        char = char,
+                        apikey = prefs['apikey']
+                    )
                 Log('m3u8 : %s', redirect_url)
                 return [
                     MediaObject(
