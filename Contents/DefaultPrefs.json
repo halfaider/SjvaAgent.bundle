@@ -1,13 +1,13 @@
 [
 	{
 		"id": "server",
-		"label": "SJVA 주소. DDNS만 입력. 끝에 / 삭제",
+		"label": "FF 주소. DDNS만 입력. 끝에 / 삭제",
 		"type": "text",
 		"default": ""
 	},
 	{
 		"id": "apikey",
-		"label": "SJVA APIKEY. APIKEY 사용시만 입력",
+		"label": "FF APIKEY. APIKEY 사용시만 입력",
 		"type": "text",
 		"default": ""
 	},
@@ -27,7 +27,7 @@
 		"id": "read_json",
 		"label": "JSON 파일이 있으면 사용할 섹션 ID 목록 (all이면 모두. 구분자 ,)",
 		"type": "text",
-		"default": "all"
+		"default": ""
 	},
 	{
 		"id": "write_json",

@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, time, urllib2
+import json
+import os
+import re
+import time
+import traceback
+import unicodedata
+import urllib
 from io import open
+
 from .agent_base import AgentBase
+
 
 class ModuleYamlBase(AgentBase):
     
@@ -275,7 +283,8 @@ class ModuleYamlBase(AgentBase):
                     mode = self.get(extra, 'mode', None)
                     extra_type = self.get(extra, 'type', 'trailer')
                     extra_class = self.extra_map[extra_type.lower()]
-                    url = 'sjva://sjva.me/playvideo/%s|%s' % (mode, extra.get('param'))
+                    extra_url = extra.get('param')
+                    url = 'sjva://sjva.me/playvideo/%s|%s' % (mode, extra_url)
                     meta.add(
                         extra_class(
                             url=url, 

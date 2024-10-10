@@ -1,7 +1,15 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, time
+import json
+import os
+import re
+import time
+import traceback
+import unicodedata
+import urllib
+
 # /:/plugins/com.plexapp.agents.sjva_agent/function/version?X-Plex-Token=%s' % (server_url, server_token)
 from . import d
+
 
 @route('/version') 
 def version():
@@ -187,3 +195,44 @@ def get_folderpath(key):
         Log(traceback.format_exc())
         ret = {'ret':'exception', 'log':str(e)}
     return (ret)
+
+# 2024.10.09
+# m3u8을 인자로 받고 내용을 가져온 후 ts 뒤에 parameter를 붙인다. (티빙)
+"""
+@route('/attach.m3u8')
+#def attach(url, autoAdjustQuality, hasMDE, mediaBufferSize, location):
+def attach(url):
+    try:
+        import urllib2
+        url =  urllib.unquote_plus(url)
+        headers = {
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.110 Safari/537.36',
+        }
+        request = urllib2.Request(url, headers=headers)
+        response = urllib2.urlopen(request)
+        data = response.read()
+        response.close()
+        new = []
+        prefix = url.rsplit('/', 1)[0]
+        #prefix = prefix.replace('https://', 'http://')
+        attach = url.split('?')[1]
+        for line in data.splitlines():
+            if line.startswith('#'):
+                new.append(line)
+            else:
+                if line.startswith('http') or line.startswith('//'):
+                    new.append(line)
+                elif '?' in line:
+                    new.append("{prefix}/{line}".format(prefix=prefix,line=line))
+                else:
+                    new.append("{prefix}/{line}?{attach}".format(prefix=prefix,line=line,attach=attach))
+        
+        data = '\n'.join(new)
+        return data
+    except Exception as e: 
+        Log('Exception:%s', e)
+        Log(traceback.format_exc())
+
+"""
