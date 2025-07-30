@@ -1,6 +1,11 @@
 VERSION = '2024.10.10'
 
 """
+2025.07.30
+  yaml 에이전트에서
+  - poster, art가 https://cdn.discordapp.com/attachments/ 로 시작하는 경우, discord proxy사용을 위해 FF로 변경함.
+  - poster, art, person photo 가 http로 시작하지 않는 경우 FF에 요청.
+  
 2024.10.10
   bug fix.
 

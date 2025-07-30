@@ -225,7 +225,15 @@ class ModuleYamlBase(AgentBase):
                     meta_person = meta.new()
                     meta_person.name = self.get(person, 'name', None)
                     meta_person.role = self.get(person, 'role', None)
-                    meta_person.photo = self.get(person, 'photo', None)
+                    try:
+                        tmp = self.get(person, 'photo', None)
+                        if tmp != None and tmp.startswith('http') == False:
+                            ddns = Prefs['server'].rstrip('/')
+                            tmp = tmp.lstrip('/')
+                            tmp = ddns + '/' + tmp
+                        meta_person.photo = tmp
+                    except Exception as e:
+                        meta_person.photo = self.get(person, 'photo', None)
             elif is_primary:
                 meta.clear()
 
@@ -240,11 +248,23 @@ class ModuleYamlBase(AgentBase):
             if len(value) > 0:
                 valid_names = []
                 for idx, media in enumerate(value):
-                    valid_names.append(media['url'])
                     if 'thumb' in media:
-                        meta[media['url']] = Proxy.Preview(HTTP.Request(media['thumb']).content, sort_order=idx+1)
+                        tmp = media['thumb']
+                        valid_names.append(media['thumb'])
                     else:
-                        meta[media['url']] = Proxy.Preview(HTTP.Request(media['url']).content, sort_order=idx+1)
+                        tmp = media['url']
+                        valid_names.append(media['url'])
+                    try:
+                        if tmp != None and tmp.startswith('http') == False:
+                            ddns = Prefs['server'].rstrip('/')
+                            tmp = tmp.lstrip('/')
+                            tmp = ddns + '/' + tmp
+                        elif tmp.startswith('https://cdn.discordapp.com/attachments'):
+                            ddns = Prefs['server'].rstrip('/')
+                            tmp = tmp.replace('https://cdn.discordapp.com', ddns)
+                        meta[tmp] = Proxy.Preview(HTTP.Request(tmp).content, sort_order=idx+1)
+                    except Exception as e:
+                        Log('Exception:%s', e)
                 meta.validate_keys(valid_names)
             elif is_primary:
                 meta.validate_keys([])
