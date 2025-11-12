@@ -20,7 +20,7 @@ import Media, VideoFiles, Stack, Utils
 import time, json, traceback, io
 
 episode_regexps = [
-    r'\.?([sS](?P<season>[0-9]{2}))?[eE](?P<ep>[0-9]{2,4})',
+    r'\.?([sS](?P<season>[0-9]{2}))?[eE](?P<ep>[0-9]{2,5})',
     ur'(?P<ep>\d{1,4})[회화]',
 ]
 
