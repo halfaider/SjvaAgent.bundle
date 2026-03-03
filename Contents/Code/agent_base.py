@@ -227,6 +227,9 @@ class AgentBase(object):
                 if token:
                     return token
 
+            if self.token:
+                return self.token
+
             system = platform.system()
             Log.Debug('현재 운영체제: %s', system)
             if system == 'Windows':
@@ -247,8 +250,8 @@ class AgentBase(object):
                             if text:
                                 prefs_xml = XML.ElementFromString(text)
                                 token = prefs_xml.get('PlexOnlineToken')
-                                if token:
-                                    self.token = token
+                                if token and isinstance(token, str):
+                                    self.token = token.strip()
                                     Log.Info('Preferences.xml에서 토큰을 가져왔습니다.')
                                     return self.token
                         break
