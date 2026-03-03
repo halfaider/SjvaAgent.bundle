@@ -1,6 +1,10 @@
-VERSION = '2025.07.30'
+VERSION = '2026.03.03'
 
 """
+2026.03.03
+  - webp 형식의 이미지 파일을 요청하지 않도록 헤더 수정(VP8X 포멧 이미지를 트랜스코딩 시 크래시 발생)
+  - 기존 토큰 획득방식이 제한되어 Preferences.xml 파싱 혹은 직접 입력으로 변경
+
 2025.07.30
   yaml 에이전트에서
   - poster, art가 https://cdn.discordapp.com/attachments/ 로 시작하는 경우, discord proxy사용을 위해 FF로 변경함.

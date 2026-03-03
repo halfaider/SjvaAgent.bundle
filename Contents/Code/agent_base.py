@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, time, urllib2, io
+import os, traceback, json, urllib, re, unicodedata, time, urllib2, io, platform
 from io import open
 from functools import wraps
 import yaml
@@ -219,15 +219,46 @@ class AgentBase(object):
             Log(traceback.format_exc())
     
     def get_token(self):
+        # 'Critical', 'Debug', 'Error', 'Exception', 'Info', 'Stack', 'Warn'
         try:
-            if self.token is None:
-                url = 'http://127.0.0.1:32400/myplex/account'
-                data = JSON.ObjectFromURL(url)
-                self.token = data['MyPlex']['authToken']
-            return self.token
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+            token = Prefs['plex_token']
+            if isinstance(token, str):
+                token = token.strip()
+                if token:
+                    return token
+
+            system = platform.system()
+            Log.Debug('현재 운영체제: %s', system)
+            if system == 'Windows':
+                Log.Warn('Windows 환경에서는 에이전트 설정에 토큰을 직접 입력해 주세요.')
+                return
+
+            try:
+                current_path = re.sub(r'^\\\\\?\\', '', os.getcwd())
+                pms_root = current_path
+                for _ in range(4):
+                    pms_root = os.path.dirname(pms_root)
+                    pref_filepath = os.path.join(pms_root, 'Preferences.xml')
+                    Log.Debug('경로 검사: %s', pref_filepath)
+                    if os.path.exists(pref_filepath):
+                        Log.Info('파일을 찾았습니다: %s', pref_filepath)
+                        with io.open(pref_filepath, 'r', encoding='utf8') as f:
+                            text = f.read()
+                            if text:
+                                prefs_xml = XML.ElementFromString(text)
+                                token = prefs_xml.get('PlexOnlineToken')
+                                if token:
+                                    self.token = token
+                                    Log.Info('Preferences.xml에서 토큰을 가져왔습니다.')
+                                    return self.token
+                        break
+                else:
+                    Log.Warn('Preferences.xml 탐색 실패')
+            except Exception as e:
+                Log.Warn('Preferences.xml 탐색 중 오류 발생: %s', str(e))
+            Log.Error('토큰을 가져오지 못 했습니다.')
+        except Exception: 
+            Log.Exception('토큰 확인 중 오류가 발생했습니다.')
     
     def get_json_filepath(self, media):
         try:

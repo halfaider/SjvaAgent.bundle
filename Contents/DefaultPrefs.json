@@ -59,5 +59,11 @@
 		"label": "쇼에서 파일 부가 영상을 포함할 섹션 ID 목록 (all이면 모두. 구분자 ,)",
 		"type": "text",
 		"default": ""
+	},
+	{
+		"id": "plex_token",
+		"label": "에이전트가 플렉스 서버에 API 요청시 사용할 플렉스 토큰",
+		"type": "text",
+		"default": ""
 	}
 ]
