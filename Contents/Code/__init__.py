@@ -12,6 +12,7 @@ def Start():
 
 
 import functools
+import urlparse
 
 from .agent_movie import AgentMovie
 from .agent_show import AgentShow
@@ -41,6 +42,13 @@ def is_webp(data):
     return False
 
 
+def check_response(response, url):
+    content_type = 'Unknown'
+    if 'content-type' in response.headers or 'Content-Type' in response.headers:
+        content_type = response.headers['content-type']
+    Log.Warn("%s - %s", url, content_type)
+
+
 def wrapper(func):
     @functools.wraps(func)
     def wrapped(*args, **kwds):
@@ -48,13 +56,21 @@ def wrapper(func):
         kwds['headers']['Accept'] = 'text/html,application/xhtml+xml,application/xml;q=0.9,image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5'
         kwds['headers']['User-Agent'] = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36'
         kwds['headers']['Accept-Language'] = 'ko,en-US;q=0.9,en;q=0.8,de;q=0.7,zh-CN;q=0.6,zh;q=0.5,lb;q=0.4'
+        url_parts = urlparse.urlparse(args[0])
+        args = list(args)
+        is_tmdb = url_parts.netloc == 'image.tmdb.org'
+        tmdb_pattern = r'/(t/p/)[^/]+/'
+        if is_tmdb:
+            args[0] = re.sub(tmdb_pattern, r'/\1w342/', args[0])
         response = func(*args, **kwds)
         try:
             if is_webp(response.content):
-                content_type = 'Unknown'
-                if 'content-type' in response.headers or 'Content-Type' in response.headers:
-                    content_type = response.headers['content-type']
-                Log.Warn("%s - %s", args[0], content_type)
+                check_response(response, args[0])
+                if is_tmdb:
+                    args[0] = re.sub(tmdb_pattern, r'/\1w185/', args[0])
+                    response = func(*args, **kwds)
+                    if is_webp(response.content):
+                        check_response(response, args[0])
         except Exception:
             Log.Exception(args[0])
         return response
