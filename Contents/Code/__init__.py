@@ -23,6 +23,7 @@ elif tmp == 'Jav Censored Ama':
 
 ORIGINAL_HTTP_REQUEST_FUNC = HTTP.Request
 ORIGINAL_PROXY_PREVIEW_FUNC = Proxy.Preview
+ORIGINAL_PROXY_MEDIA_FUNC = Proxy.Media
 ORIGINAL_STORAGE_SAVE_FUNC = Framework.components.storage.Storage.save
 FFMPEG_PATH = find_executable('ffmpeg', os.environ['PATH'])
 
@@ -32,6 +33,8 @@ def Start():
     HTTP.Request = request_wrapper(HTTP.Request)
     Proxy.Preview = ORIGINAL_PROXY_PREVIEW_FUNC
     Proxy.Preview = preview_wrapper(Proxy.Preview)
+    Proxy.Media = ORIGINAL_PROXY_MEDIA_FUNC
+    Proxy.Preview = preview_wrapper(Proxy.Media)
     Framework.components.storage.Storage.save = ORIGINAL_STORAGE_SAVE_FUNC
     Framework.components.storage.Storage.save = storage_save_wrapper(Framework.components.storage.Storage.save)
     Log.Debug("ffmpeg 경로: %s", FFMPEG_PATH)
@@ -94,21 +97,13 @@ def is_webp(data):
     return False
 
 
-def get_content_type(response):
-    for key, value in response.headers.items():
-        if key.lower() == 'content-type':
-            return value
-    return "Unknown"
-
-
 def request_wrapper(func):
     @functools.wraps(func)
     def wrapped(*args, **kwds):
         #kwds.setdefault('headers', {'Accept': 'image/webp,image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5'})
         response = func(*args, **kwds)
-        if is_webp(response.content):
-            content_type = get_content_type(response)
-            Log.Warn("%s - %s", args[0], content_type)
+        #if 'content-type' in response.headers:
+        #    Log.Debug("%s - %s", args[0], response.headers['content-type'])
         return response
     return wrapped
 
@@ -127,17 +122,34 @@ def preview_wrapper(func):
     return wrapped
 
 
+def shorten_plex_path(full_path):
+    parts = os.path.normpath(full_path).split(os.sep)
+    shorten_parts = [
+        item 
+        for i, part in enumerate(parts)
+        if part.endswith('.bundle') or 'com.plex' in part or '_combined' in part or '_stored' in part or i == len(parts) - 1
+        for item in ('...', part)
+    ]
+    return os.sep.join(shorten_parts)
+
+
 def storage_save_wrapper(func):
     @functools.wraps(func)
     def wrapped(*args, **kwds):
         # def save(self, filename, data, binary=True, mtime_key=None):
+        filename = None
         try:
             _, filename, data = args[:3]
             if is_webp(data):
                 Log.Debug("WEBP 데이터 발견: %s", filename)
                 args = list(args)
                 args[2] = convert_webp_to_jpg(data)
+            if data is None:
+                Log.Error("None 데이터 발견: %s", filename)
         except Exception:
             Log.Exception('')
-        return func(*args, **kwds)
+        result = func(*args, **kwds)
+        if filename:
+            Log.Debug('저장: %s', shorten_plex_path(filename))
+        return result
     return wrapped
