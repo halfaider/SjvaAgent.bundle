@@ -703,11 +703,15 @@ class AgentBase(object):
     def yaml_load(self, filepath):
         #data = self.yaml_load(filepath)
         #data = yaml.load(io.open(filepath), Loader=yaml.BaseLoader)
-        try: 
-            data = yaml.load(io.open(filepath, encoding='utf-8'), Loader=yaml.BaseLoader)
-        except: 
-            data = yaml.load(io.open(filepath, encoding='euc-kr'), Loader=yaml.BaseLoader)
-        return data
+        try:
+            with io.open(filepath, encoding='utf-8') as f:
+                return yaml.load(f, Loader=yaml.BaseLoader)
+        except (UnicodeDecodeError, Exception):
+            try:
+                with io.open(filepath, encoding='euc-kr') as f:
+                    return yaml.load(f, Loader=yaml.BaseLoader)
+            except Exception:
+                Log.Exception(filepath)
 
 
 
