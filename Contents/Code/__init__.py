@@ -101,6 +101,9 @@ def request_wrapper(func):
     @functools.wraps(func)
     def wrapped(*args, **kwds):
         #kwds.setdefault('headers', {'Accept': 'image/webp,image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5'})
+        if 'format=webp' in args[0]:
+            args = list(args)
+            args[0] = args[0].replace('format=webp', 'format=jpeg')
         response = func(*args, **kwds)
         #if 'content-type' in response.headers:
         #    Log.Debug("%s - %s", args[0], response.headers['content-type'])
