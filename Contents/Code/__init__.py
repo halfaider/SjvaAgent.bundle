@@ -26,6 +26,7 @@ ORIGINAL_PROXY_PREVIEW_FUNC = Proxy.Preview
 ORIGINAL_PROXY_MEDIA_FUNC = Proxy.Media
 ORIGINAL_STORAGE_SAVE_FUNC = Framework.components.storage.Storage.save
 FFMPEG_PATH = find_executable('ffmpeg', os.environ['PATH'])
+DWEBP_PATH = find_executable('dwebp', os.environ['PATH'])
 
 
 def Start():
@@ -38,6 +39,7 @@ def Start():
     Framework.components.storage.Storage.save = ORIGINAL_STORAGE_SAVE_FUNC
     Framework.components.storage.Storage.save = storage_save_wrapper(Framework.components.storage.Storage.save)
     Log.Debug("ffmpeg 경로: %s", FFMPEG_PATH)
+    Log.Debug("dwebp 경로: %s", DWEBP_PATH)
 
 
 def d(data):
@@ -53,19 +55,30 @@ def kill_process(process):
         Log.Error("FFmpeg 프로세스 종료 실패")
 
 
-def convert_webp_to_jpg(webp_data):
-    if not FFMPEG_PATH:
+def convert_webp(webp_data):
+    if DWEBP_PATH:
+        cmd = [
+            DWEBP_PATH,
+            '-quiet',
+            '-o', '-',
+            '--', '-'
+        ]
+        mode = 'dwebp (WEBP -> PNG)'
+    elif FFMPEG_PATH:
+        cmd = [
+            FFMPEG_PATH,
+            '-hide_banner',
+            '-loglevel', 'error',
+            '-i', 'pipe:0',
+            '-vframes', '1',
+            '-f', 'image2pipe',
+            '-vcodec', 'mjpeg',
+            'pipe:1'
+        ]
+        mode = 'ffmpeg (WEBP -> JPEG)'
+    else:
         return webp_data
-    cmd = [
-        FFMPEG_PATH,
-        '-hide_banner',
-        '-loglevel', 'error',
-        '-i', 'pipe:0',
-        '-vframes', '1',
-        '-f', 'image2pipe',
-        '-vcodec', 'mjpeg',
-        'pipe:1'
-    ]
+    
     process = None
     timer = None
     try:
@@ -76,12 +89,12 @@ def convert_webp_to_jpg(webp_data):
         
         out, err = process.communicate(input=webp_data)
         if process.returncode == 0 and out:
-            Log.Debug("FFmpeg 변환: WEBP -> JPEG")
+            Log.Debug(mode)
             return out
         else:
-            Log.Error("FFmpeg 오류: %s", str(err))
+            Log.Error("%s 오류: %s", mode, err.decode('utf-8', 'ignore') if isinstance(err, str) else err)
     except Exception as e:
-        Log.Exception("FFmpeg 변환 실패: %s", str(e))
+        Log.Exception("%s 실패: %s", mode, str(e))
     finally:
         if timer:
             timer.cancel()
@@ -118,7 +131,7 @@ def preview_wrapper(func):
             if is_webp(args[0]):
                 Log.Debug("WEBP 데이터 발견")
                 args = list(args)
-                args[0] = convert_webp_to_jpg(args[0])
+                args[0] = convert_webp(args[0])
         except Exception:
             Log.Exception('')
         return func(*args, **kwds)
@@ -146,7 +159,7 @@ def storage_save_wrapper(func):
             if is_webp(data):
                 Log.Debug("WEBP 데이터 발견: %s", filename)
                 args = list(args)
-                args[2] = convert_webp_to_jpg(data)
+                args[2] = convert_webp(data)
             if data is None:
                 Log.Error("None 데이터 발견: %s", filename)
         except Exception:
