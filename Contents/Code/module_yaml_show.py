@@ -187,7 +187,7 @@ class ModuleYamlShow(ModuleYamlBase):
                     self.set_data_person(metadata_episode, data, 'writers', is_primary)
                     self.set_data_person(metadata_episode, data, 'directors', is_primary)
 
-                    self.set_data_media(metadata_episode, data_episode, 'thumbs', is_primary)
+                    self.set_data_media(metadata_episode, data_episode, 'posters', is_primary)
                     self.set_data_extras(metadata_episode, data_episode, 'extras', is_primary)
         except Exception as e: 
             Log('Exception:%s', e)
@@ -202,6 +202,8 @@ class ModuleYamlShow(ModuleYamlBase):
         data = JSON.ObjectFromURL(url)
         section_id = data['MediaContainer']['librarySectionID']
         token = Request.Headers['X-Plex-Token']
+        if not token:
+            token = self.get_token()
         media_season_id = media.seasons[media_season_index].id
 
         url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&X-Plex-Token=%s' % (section_id, media_season_id, token)

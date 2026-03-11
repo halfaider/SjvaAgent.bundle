@@ -637,13 +637,13 @@ class AgentBase(object):
             meta = getattr(meta, field)
             value = self.get_media_list(data, field)
             if len(value) > 0:
-                valid_names = []
+                valid_names = set()
                 for idx, media in enumerate(value):
-                    valid_names.append(media['url'])
-                    if 'thumb' in media:
-                        meta[media['url']] = Proxy.Preview(HTTP.Request(media['thumb']).content, sort_order=idx+1)
-                    else:
-                        meta[media['url']] = Proxy.Preview(HTTP.Request(media['url']).content, sort_order=idx+1)
+                    image_url = media.get('thumb') or media.get('url')
+                    valid_names.add(image_url)
+                    if image_url in meta:
+                        continue
+                    meta[image_url] = Proxy.Preview(HTTP.Request(image_url).content, sort_order=idx+1)
                 meta.validate_keys(valid_names)
             elif is_primary:
                 meta.validate_keys([])
