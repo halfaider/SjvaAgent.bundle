@@ -213,20 +213,22 @@ class ModuleFtv(AgentBase):
             Log('%s - %s'% (actor.name, actor.photo))
 
         # poster
-        valid_names = []
+        valid_names = set()
         poster_index = art_index = banner_index = 0
         art_map = {'poster': [metadata.posters, 0], 'landscape' : [metadata.art, 0], 'banner':[metadata.banners, 0]}
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
-            valid_names.append(item['value'])
+            if item['value'] in valid_names:
+                continue
+            valid_names.add(item['value'])
             try:
                 target = art_map[item['aspect']]
                 target[0][item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=target[1]+1)
                 target[1] = target[1] + 1
             except: pass
         # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
-        #metadata.posters.validate_keys(valid_names)
-        #metadata.art.validate_keys(valid_names)
-        #metadata.banners.validate_keys(valid_names)
+        metadata.posters.validate_keys(valid_names)
+        metadata.art.validate_keys(valid_names)
+        metadata.banners.validate_keys(valid_names)
         #metadata_season.posters.validate_keys(season_valid_names)
         #metadata_season.art.validate_keys(season_valid_names)
 
@@ -266,12 +268,14 @@ class ModuleFtv(AgentBase):
 
     def update_season(self, season_no, metadata_season, meta_info, media):
         #Log(json.dumps(meta_info, indent=4))
-        valid_names = []
+        valid_names = set()
         poster_index = art_index = banner_index = 0
         art_map = {'poster': [metadata_season.posters, 0], 'landscape' : [metadata_season.art, 0], 'banner':[metadata_season.banners, 0]}
         Log('Season no : %s' % season_no)
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
-            valid_names.append(item['value'])
+            if item['value'] in valid_names:
+                continue
+            valid_names.add(item['value'])
             try:
                 target = art_map[item['aspect']]
                 target[0][item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=target[1]+1)
@@ -280,6 +284,8 @@ class ModuleFtv(AgentBase):
         
         metadata_season.summary = meta_info['plot']
         metadata_season.title = meta_info['season_name']
+        metadata_season.posters.validate_keys(valid_names)
+        metadata_season.art.validate_keys(valid_names)
 
         # 2022-05-12
         if True or int(season_no) > 100:

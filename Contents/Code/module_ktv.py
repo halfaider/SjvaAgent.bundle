@@ -220,46 +220,38 @@ class ModuleKtv(AgentBase):
 
         # poster
         ProxyClass = Proxy.Preview
-        valid_names = []
-        season_valid_names = []
-        poster_index = art_index = banner_index = 0
+        valid_names = set()
+        season_valid_names = set()
+        poster_templates = {
+            'poster': [metadata.posters, metadata_season.posters, 0],
+            'landscape': [metadata.art, metadata_season.art, 0],
+            'banner': [metadata.banners, None, 0]
+        }
         for item in sorted(meta_info['thumb'], key=lambda k: k['score'], reverse=True):
-            valid_names.append(item['value'])
             try:
-                if item['aspect'] == 'poster':
-                    if item['thumb'] == '':
-                        metadata.posters[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=poster_index+1)
-                        metadata_season.posters[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=poster_index+1)
-                    else:
-                        metadata.posters[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=poster_index+1)
-                        metadata_season.posters[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=poster_index+1)
-                    season_valid_names.append(item['value'])
-                    poster_index = poster_index + 1
-                elif item['aspect'] == 'landscape':
-                    if item['thumb'] == '':
-                        metadata.art[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=art_index+1)
-                        metadata_season.art[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=art_index+1)
-                    else:
-                        metadata.art[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=art_index+1)
-                        metadata_season.art[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=art_index+1)
-                    season_valid_names.append(item['value'])
-                    art_index = art_index + 1
-                elif item['aspect'] == 'banner':
-                    if item['thumb'] == '': 
-                        metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=banner_index+1)
-                    else:
-                        metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=banner_index+1) 
-                    banner_index = banner_index + 1
-            except Exception as e: 
-                Log('Exception:%s', e)
-                #Log(traceback.format_exc())
+                image_url = item.get('thumb') or item.get('value')
+                if not image_url:
+                    continue
+                aspect = item.get('aspect') or 'poster'
+                process = poster_templates.get(aspect)
+                if not process:
+                    continue
+                process[2] = process[2] + 1
+                content = ProxyClass(HTTP.Request(image_url).content, sort_order=process[2])
+                process[0][image_url] = content
+                if process[1]:
+                    process[1][image_url] = content
+                    season_valid_names.add(image_url)
+                valid_names.add(image_url)
+            except Exception:
+                Log.Exception('')
                 
         # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
-        #metadata.posters.validate_keys(valid_names)
-        #metadata.art.validate_keys(valid_names)
-        #metadata.banners.validate_keys(valid_names)
-        #metadata_season.posters.validate_keys(season_valid_names)
-        #metadata_season.art.validate_keys(season_valid_names)
+        metadata.posters.validate_keys(valid_names)
+        metadata.art.validate_keys(valid_names)
+        metadata.banners.validate_keys(valid_names)
+        metadata_season.posters.validate_keys(season_valid_names)
+        metadata_season.art.validate_keys(season_valid_names)
 
         # 테마
         valid_names = []
@@ -294,7 +286,7 @@ class ModuleKtv(AgentBase):
 
     def update_episode(self, show_epi_info, episode, media, info_json, is_write_json, frequency=None):
         try:
-            valid_names = []
+            valid_names = set()
 
             if 'daum' in show_epi_info:
                 #if 'tving_id' in meta_info['extra_info']:
@@ -317,7 +309,7 @@ class ModuleKtv(AgentBase):
                 for site in ['tving', 'wavve']:
                     if site in show_epi_info:
                         thumb_index = 20
-                        valid_names.append(show_epi_info[site]['thumb'])
+                        valid_names.add(show_epi_info[site]['thumb'])
                         try: 
                             episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Preview(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
                             ott_thumb = True
@@ -329,7 +321,7 @@ class ModuleKtv(AgentBase):
                 thumb_index = 30
                 ott_mode = 'only_thumb'
                 for item in sorted(episode_info['thumb'], key=lambda k: k['score'], reverse=True):
-                    valid_names.append(item['value'])
+                    valid_names.add(item['value'])
                     if item['thumb'] == '':
                         try: episode.thumbs[item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=thumb_index+1)
                         except: pass
@@ -360,11 +352,11 @@ class ModuleKtv(AgentBase):
 
                         if ott_mode in ['full', 'only_thumb']:
                             thumb_index = 20
-                            valid_names.append(show_epi_info[site]['thumb'])
+                            valid_names.add(show_epi_info[site]['thumb'])
                             try: episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Preview(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
                             except: pass
                 
-            #episode.thumbs.validate_keys(valid_names)
+            episode.thumbs.validate_keys(valid_names)
 
         except Exception as e: 
             Log('Exception:%s', e)

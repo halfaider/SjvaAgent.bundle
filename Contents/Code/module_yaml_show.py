@@ -190,8 +190,7 @@ class ModuleYamlShow(ModuleYamlBase):
                     self.set_data_media(metadata_episode, data_episode, 'thumbs', is_primary)
                     self.set_data_extras(metadata_episode, data_episode, 'extras', is_primary)
         except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+            Log.Exception('')
 
 
 
