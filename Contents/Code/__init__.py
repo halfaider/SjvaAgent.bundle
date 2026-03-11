@@ -103,10 +103,13 @@ def convert_webp(webp_data):
 
 
 def is_webp(data):
-    if len(data) < 16:
-        return False
-    if data[0:4] == b'RIFF' or  data[8:12] == b'WEBP':
-        return True
+    try:
+        if len(data) < 16:
+            return False
+        if data[0:4] == b'RIFF' or  data[8:12] == b'WEBP':
+            return True
+    except Exception:
+        Log.Warn("정상적인 데이터가 아닙니다: %s", data)
     return False
 
 
