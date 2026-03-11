@@ -28,9 +28,9 @@ class ModuleKtv(AgentBase):
                 if code != None and code.startswith('MT'):
                     code = code.replace('MT', 'FT')
                 if code != None and code.startswith('F'):
-                    meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
+                    meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
                     results.Append(meta)
-                    return  
+                    #return
             except Exception as exception: 
                 Log('Exception:%s', exception)
                 Log(traceback.format_exc())
