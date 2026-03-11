@@ -103,13 +103,10 @@ def convert_webp(webp_data):
 
 
 def is_webp(data):
-    try:
-        if len(data) < 16:
-            return False
-        if data[0:4] == b'RIFF' or  data[8:12] == b'WEBP':
-            return True
-    except Exception:
-        Log.Warn("정상적인 데이터가 아닙니다: %s", data)
+    if len(data) < 16:
+        return False
+    if data[0:4] == b'RIFF' or  data[8:12] == b'WEBP':
+        return True
     return False
 
 
@@ -117,14 +114,6 @@ def request_wrapper(func):
     @functools.wraps(func)
     def wrapped(*args, **kwds):
         #kwds.setdefault('headers', {'Accept': 'image/webp,image/jpeg,image/png,image/*;q=0.8,*/*;q=0.5'})
-        #이미지는 캐시 안 됨
-        #kwds.setdefault('cacheTime', 300)
-        if 'timeout' not in kwds:
-            try:
-                user_timeout = int(Prefs['timeout'])
-            except Exception:
-                user_timeout = 0
-            kwds['timeout'] = user_timeout
         if 'format=webp' in args[0]:
             args = list(args)
             args[0] = args[0].replace('format=webp', 'format=jpeg')
@@ -150,16 +139,14 @@ def preview_wrapper(func):
 
 
 def shorten_plex_path(full_path):
-    anchor = "Library/Application Support/Plex Media Server"
-    norm_path = os.path.normpath(full_path)
-    norm_anchor = os.path.normpath(anchor)
-    idx = norm_path.find(norm_anchor)
-    if idx != -1:
-        after_anchor_idx = idx + len(norm_anchor)
-        remaining = norm_path[after_anchor_idx:]
-        remaining = remaining.lstrip(os.sep)
-        return os.path.join('...', remaining)
-    return norm_path
+    parts = os.path.normpath(full_path).split(os.sep)
+    shorten_parts = [
+        item 
+        for i, part in enumerate(parts)
+        if part.endswith('.bundle') or 'com.plex' in part or '_combined' in part or '_stored' in part or i == len(parts) - 1
+        for item in ('...', part)
+    ]
+    return os.sep.join(shorten_parts)
 
 
 def storage_save_wrapper(func):
@@ -167,21 +154,18 @@ def storage_save_wrapper(func):
     def wrapped(*args, **kwds):
         # def save(self, filename, data, binary=True, mtime_key=None):
         filename = None
-        shorten_filename = None
-        data = None
         try:
             _, filename, data = args[:3]
-            shorten_filename = shorten_plex_path(filename)
             if is_webp(data):
-                Log.Debug("WEBP 데이터 발견: %s", shorten_filename)
+                Log.Debug("WEBP 데이터 발견: %s", filename)
                 args = list(args)
                 args[2] = convert_webp(data)
-            elif not data:
-                Log.Error("None 데이터 발견: %s", shorten_filename)
+            if data is None:
+                Log.Error("None 데이터 발견: %s", filename)
         except Exception:
             Log.Exception('')
         result = func(*args, **kwds)
-        if shorten_filename:
-            Log.Debug('저장: %s (%d)', shorten_filename, len(data) if data else 0)
+        if filename:
+            Log.Debug('저장: %s', shorten_plex_path(filename))
         return result
     return wrapped
