@@ -263,9 +263,10 @@ class ModuleYamlBase(AgentBase):
                             ddns = Prefs['server'].rstrip('/')
                             tmp = tmp.replace('https://cdn.discordapp.com', ddns)
                         meta[tmp] = Proxy.Preview(HTTP.Request(tmp).content, sort_order=idx+1)
-                    except Exception as e:
-                        Log('Exception:%s', e)
-                meta.validate_keys(valid_names)
+                    except Exception:
+                        Log.Exception('')
+                if is_primary:
+                    meta.validate_keys(valid_names)
             elif is_primary:
                 meta.validate_keys([])
             #Log(meta)

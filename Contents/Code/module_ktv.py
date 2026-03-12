@@ -183,7 +183,7 @@ class ModuleKtv(AgentBase):
             Log(traceback.format_exc())
 
 
-    def update_info(self, metadata, metadata_season,  meta_info):
+    def update_info(self, metadata, metadata_season,  meta_info, image_urls):
         #metadata.original_title = metadata.title
         #metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
         metadata.studio = meta_info['studio']
@@ -228,14 +228,21 @@ class ModuleKtv(AgentBase):
             'banner': [metadata.banners, None, 0]
         }
         for item in sorted(meta_info['thumb'], key=lambda k: k['score'], reverse=True):
+            image_url = item.get('thumb') or item.get('value')
+            aspect = item.get('aspect') or 'poster'
+            process = poster_templates.get(aspect)
+            """
+            2026-03-12 halfaider
+            프로그램과 동일한 포스터를 시즌에 계속 넣어줄 필요가 있을까?
+            """
+            if not process or not image_url or image_url in image_urls[aspect]:
+                continue
+            """
+            2026-03-12 halfaider
+            update()에서 validate_keys() 하기 위해
+            """
+            image_urls[aspect].add(image_url)
             try:
-                image_url = item.get('thumb') or item.get('value')
-                if not image_url:
-                    continue
-                aspect = item.get('aspect') or 'poster'
-                process = poster_templates.get(aspect)
-                if not process:
-                    continue
                 process[2] = process[2] + 1
                 content = ProxyClass(HTTP.Request(image_url).content, sort_order=process[2])
                 process[0][image_url] = content
@@ -247,9 +254,15 @@ class ModuleKtv(AgentBase):
                 Log.Exception('')
                 
         # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
-        metadata.posters.validate_keys(valid_names)
-        metadata.art.validate_keys(valid_names)
-        metadata.banners.validate_keys(valid_names)
+        """
+        2026-03-11 halfaider
+        validate_keys()는 보유중인 모든 키가 입력받은 기준 목록에 있는지 검사함
+        만약 기준 목록에 없으면 삭제
+        그래서 각 시즌마다 validate_keys()를 하면 마지막 시즌에서 작업한 포스터만 남음
+        """
+        #metadata.posters.validate_keys(valid_names)
+        #metadata.art.validate_keys(valid_names)
+        #metadata.banners.validate_keys(valid_names)
         metadata_season.posters.validate_keys(season_valid_names)
         metadata_season.art.validate_keys(season_valid_names)
 
@@ -396,92 +409,99 @@ class ModuleKtv(AgentBase):
             index_list = [index for index in media.seasons]
             index_list = sorted(index_list)
             #for media_season_index in media.seasons:
-            
+
+            image_urls = {
+                'poster': set(),
+                'landscape': set(),
+                'banner': set()
+            }
+
             # 2021-11-05
             metadata.roles.clear()
-            for media_season_index in index_list:
-                Log('media_season_index is %s', media_season_index)
-                # 2022-04-05
-                search_media_season_index = media_season_index
-                if len(str(media_season_index)) > 2:
-                    search_media_season_index = str(media_season_index)[-2:]
+            @parallelize
+            def UpdateSeasons():
+                for media_season_index in index_list:
+                    Log('media_season_index is %s', media_season_index)
+                    # 2022-04-05
+                    search_media_season_index = media_season_index
+                    if len(str(media_season_index)) > 2:
+                        search_media_season_index = str(media_season_index)[-2:]
 
-                if search_media_season_index in ['0', '00']:
-                    continue
-                
-                #Log(self.d(search_data['daum']['series']))
-                search_title = media.title.replace(u'[종영]', '')
-                search_title = search_title.split('|')[0].strip()
-                Log('search_title2 : %s', search_title)
-                #Log('search_code2 : %s', search_code)
+                    if search_media_season_index in ['0', '00']:
+                        continue
+                    
+                    #Log(self.d(search_data['daum']['series']))
+                    search_title = media.title.replace(u'[종영]', '')
+                    search_title = search_title.split('|')[0].strip()
+                    Log('search_title2 : %s', search_title)
+                    #Log('search_code2 : %s', search_code)
 
-                # 신과함께3 단일 미디어파일이면 search_media_season_index 1이여서 시즌1이 매칭됨.
-                # 단일 미디어 파일에서는 사용하지 않도록함.
-                # 어짜피 여러 시즌버전을 넣는다면 신과함꼐3도 시즌3으로 바꾸어야함.
-                search_code = metadata.id            
-                only_season_title_show = False
-                if flag_media_season and 'daum' in search_data and len(search_data['daum']['series']) > 1:
-                    try: #사당보다 먼 의정부보다 가까운 3
-                        Log(len(search_data['daum']['series']))
-                        search_title = search_data['daum']['series'][int(search_media_season_index)-1]['title']
-                        search_code = search_data['daum']['series'][int(search_media_season_index)-1]['code']
-                    except:
-                        only_season_title_show = True
-                
-                Log('flag_media_season : %s', flag_media_season)
-                Log('search_title : %s', search_title)
-                Log('search_code : %s', search_code)
-                Log('media_season_index : %s', media_season_index)
-                Log('search_media_season_index: %s', search_media_season_index)
-                
+                    # 신과함께3 단일 미디어파일이면 search_media_season_index 1이여서 시즌1이 매칭됨.
+                    # 단일 미디어 파일에서는 사용하지 않도록함.
+                    # 어짜피 여러 시즌버전을 넣는다면 신과함꼐3도 시즌3으로 바꾸어야함.
+                    search_code = metadata.id            
+                    only_season_title_show = False
+                    if flag_media_season and 'daum' in search_data and len(search_data['daum']['series']) > 1:
+                        try: #사당보다 먼 의정부보다 가까운 3
+                            Log(len(search_data['daum']['series']))
+                            search_title = search_data['daum']['series'][int(search_media_season_index)-1]['title']
+                            search_code = search_data['daum']['series'][int(search_media_season_index)-1]['code']
+                        except:
+                            only_season_title_show = True
+                    
+                    Log('flag_media_season : %s', flag_media_season)
+                    Log('search_title : %s', search_title)
+                    Log('search_code : %s', search_code)
+                    Log('media_season_index : %s', media_season_index)
+                    Log('search_media_season_index: %s', search_media_season_index)
+                    
 
-                Log('only_season_title_show : %s', only_season_title_show) 
-                #self.get_json_filepath(media) 
-                #self.get_json_filepath(media.seasons[media_season_index])
+                    Log('only_season_title_show : %s', only_season_title_show) 
+                    #self.get_json_filepath(media) 
+                    #self.get_json_filepath(media.seasons[media_season_index])
 
-                if only_season_title_show == False:
+                    if only_season_title_show == False:
 
-                    meta_info = None
-                    if info_json is not None and search_code in info_json:
-                        # 방송중이라면 저장된 정보를 무시해야 새로운 에피를 갱신
-                        if info_json[search_code]['status'] == 2:
-                            meta_info = info_json[search_code]
-                    if meta_info is None:
-                        meta_info = self.send_info(self.module_name, search_code, title=search_title)
-                        if meta_info is not None and is_write_json:
-                            #self.append_info(media, search_code, meta_info)
-                            info_json[search_code] = meta_info
-                            #self.save_info(media, info_json)
-                    Log("SEARCH_CODE: %s", search_code)
-                    Log("TITLE: %s", meta_info['title'])
-                    Log("SUMMARY: %s", meta_info['plot'])
-                    #Log(json.dumps(meta_info, indent=4))
+                        meta_info = None
+                        if info_json is not None and search_code in info_json:
+                            # 방송중이라면 저장된 정보를 무시해야 새로운 에피를 갱신
+                            if info_json[search_code]['status'] == 2:
+                                meta_info = info_json[search_code]
+                        if meta_info is None:
+                            meta_info = self.send_info(self.module_name, search_code, title=search_title)
+                            if meta_info is not None and is_write_json:
+                                #self.append_info(media, search_code, meta_info)
+                                info_json[search_code] = meta_info
+                                #self.save_info(media, info_json)
+                        Log("SEARCH_CODE: %s", search_code)
+                        Log("TITLE: %s", meta_info['title'])
+                        Log("SUMMARY: %s", meta_info['plot'])
+                        #Log(json.dumps(meta_info, indent=4))
 
-                    if flag_media_season:
-                        metadata.title = media.title.split('|')[0].strip()
-                    else:
-                        metadata.title = meta_info['title']
+                        if flag_media_season:
+                            metadata.title = media.title.split('|')[0].strip()
+                        else:
+                            metadata.title = meta_info['title']
+                            
+
+                        metadata.original_title = metadata.title                  
+                        metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
                         
+                        if flag_media_season == False and meta_info['status'] == 2 and  module_prefs['end_noti_filepath'] != '':
+                            parts = media.seasons[media_season_index].all_parts()
+                            end_noti_filepath = module_prefs['end_noti_filepath'].split('|')
+                            for tmp in end_noti_filepath:
+                                if parts[0].file.find(tmp) != -1:
+                                    metadata.title = u'[종영]%s' % metadata.title
+                                    break
 
-                    metadata.original_title = metadata.title                  
-                    metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-                    
-                    if flag_media_season == False and meta_info['status'] == 2 and  module_prefs['end_noti_filepath'] != '':
-                        parts = media.seasons[media_season_index].all_parts()
-                        end_noti_filepath = module_prefs['end_noti_filepath'].split('|')
-                        for tmp in end_noti_filepath:
-                            if parts[0].file.find(tmp) != -1:
-                                metadata.title = u'[종영]%s' % metadata.title
-                                break
+                        metadata_season = metadata.seasons[media_season_index]
+                        @task
+                        def UpdateSeason(metadata=metadata, metadata_season=metadata_season, meta_info=meta_info, image_urls=image_urls):
+                            self.update_info(metadata, metadata_season, meta_info, image_urls)
 
-                    metadata_season = metadata.seasons[media_season_index]
-                    self.update_info(metadata, metadata_season, meta_info)
-                    
-                    
-                    # 포스터
-                    # Get episode data.
-                    @parallelize
-                    def UpdateEpisodes():
+                        # 포스터
+                        # Get episode data.
                         for media_episode_index in media.seasons[media_season_index].episodes:
                             episode = metadata.seasons[media_season_index].episodes[media_episode_index]
 
@@ -518,6 +538,24 @@ class ModuleKtv(AgentBase):
                                     meta.name = item['name']
                                     meta.photo = item['thumb']
         
+            
+            """
+            2026-03-12 halfaider
+            이걸 해줘야 고아 파일이 안 생김
+            """
+            for image_bucket in (metadata.posters, metadata.art, metadata.banners):
+                image_bucket.validate_keys(image_bucket.keys())
+            #for aspect, urls in image_urls.items():
+            #    if aspect == 'poster':
+            #        bucket = metadata.posters
+            #    elif aspect == 'landscape':
+            #        bucket = metadata.art
+            #    elif aspect == 'banner':
+            #        bucket = metadata.banners
+            #    else:
+            #        continue
+            #    bucket.validate_keys(urls)
+
             # 시즌 title, summary
             if is_write_json and only_season_title_show == False:
                 self.save_info(media, info_json)

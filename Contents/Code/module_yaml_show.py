@@ -149,46 +149,50 @@ class ModuleYamlShow(ModuleYamlBase):
             index_list = [index for index in media.seasons]
             index_list = sorted(index_list)
 
-            for media_season_index in index_list:
-                Log('media_season_index is %s', media_season_index)
-                Log('media_season_index is %s', type(media_season_index))
-                metadata_season = metadata.seasons[media_season_index]
-                if str(media_season_index) not in data['seasons']:
-                    continue
-                data_season = data['seasons'][str(media_season_index)]
-                value = self.get(data_season, 'title', None)
-                if value is not None:
-                    #metadata_season.title = value
-                    self.set_season_info_by_web(media, media_season_index,  title=value)
-                
-                value = self.get(data_season, 'summary', None)
-                if value is not None:
-                    #metadata_season.summary = value
-                    self.set_season_info_by_web(media, media_season_index, summary=value)
-
-                self.set_data_media(metadata_season, data_season, 'posters', is_primary)
-                self.set_data_media(metadata_season, data_season, 'art', is_primary)
-                self.set_data_extras(metadata_season, data_season, 'extras', is_primary)
-
-
-                for media_episode_index in media.seasons[media_season_index].episodes:
-                    metadata_episode = metadata.seasons[media_season_index].episodes[media_episode_index]
-                                        
-                    if 'episodes' not in data_season or str(media_episode_index) not in data_season['episodes']:
+            @parallelize
+            def UpdateSeasons():
+                for media_season_index in index_list:
+                    Log('media_season_index is %s', media_season_index)
+                    Log('media_season_index is %s', type(media_season_index))
+                    metadata_season = metadata.seasons[media_season_index]
+                    if str(media_season_index) not in data['seasons']:
                         continue
+                    
+                    @task
+                    def UpdateSeason(metadata=metadata, data=data, media=media, metadata_season=metadata_season, media_season_index=media_season_index, is_primary=is_primary):
+                        data_season = data['seasons'][str(media_season_index)]
+                        value = self.get(data_season, 'title', None)
+                        if value is not None:
+                            #metadata_season.title = value
+                            self.set_season_info_by_web(media, media_season_index,  title=value)
+                        
+                        value = self.get(data_season, 'summary', None)
+                        if value is not None:
+                            #metadata_season.summary = value
+                            self.set_season_info_by_web(media, media_season_index, summary=value)
 
-                    data_episode = data_season['episodes'][str(media_episode_index)]
-                    Log(self.d(data_episode))
+                        self.set_data_media(metadata_season, data_season, 'posters', is_primary)
+                        self.set_data_media(metadata_season, data_season, 'art', is_primary)
+                        self.set_data_extras(metadata_season, data_season, 'extras', is_primary)
 
-                    self.set_data(metadata_episode, data_episode, 'title', is_primary)
-                    self.set_data(metadata_episode, data_episode, 'summary', is_primary)
-                    self.set_data(metadata_episode, data_episode, 'originally_available_at', is_primary)
 
-                    self.set_data_person(metadata_episode, data, 'writers', is_primary)
-                    self.set_data_person(metadata_episode, data, 'directors', is_primary)
+                        for media_episode_index in media.seasons[media_season_index].episodes:
+                            metadata_episode = metadata.seasons[media_season_index].episodes[media_episode_index]
+                                                
+                            if 'episodes' not in data_season or str(media_episode_index) not in data_season['episodes']:
+                                continue
 
-                    self.set_data_media(metadata_episode, data_episode, 'thumbs', is_primary)
-                    self.set_data_extras(metadata_episode, data_episode, 'extras', is_primary)
+                            data_episode = data_season['episodes'][str(media_episode_index)]
+                            Log(self.d(data_episode))
+
+                            self.set_data(metadata_episode, data_episode, 'title', is_primary)
+                            self.set_data(metadata_episode, data_episode, 'summary', is_primary)
+                            self.set_data(metadata_episode, data_episode, 'originally_available_at', is_primary)
+
+                            self.set_data_person(metadata_episode, data, 'writers', is_primary)
+                            self.set_data_person(metadata_episode, data, 'directors', is_primary)
+                            self.set_data_extras(metadata_episode, data_episode, 'extras', is_primary)
+                            self.set_data_media(metadata_episode, data_episode, 'thumbs', is_primary)
         except Exception as e: 
             Log.Exception('')
 
