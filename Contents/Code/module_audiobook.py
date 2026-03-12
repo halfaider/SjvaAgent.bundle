@@ -7,13 +7,13 @@ VARIOUS_ARTISTS_POSTER = 'https://music.plex.tv/pixogs/various_artists_poster.jp
 # VA : BA앨범이름 / BB앨범이름
 class ModuleAudiobookArtist(AgentBase):
     module_name = 'book'
-    
+
     def search(self, results, media, lang, manual, **kwargs):
         try:
             if media.artist.startswith('Various Artists_'):
                 results.Append(MetadataSearchResult(id='BA%s' % urllib.quote(media.artist.replace('Various Artists_', '')), name= '[Various Artists]', thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
                 return
-                
+
             if self.is_read_json(media):
                 if manual:
                     self.remove_info(media)
@@ -48,10 +48,9 @@ class ModuleAudiobookArtist(AgentBase):
                 meta = MetadataSearchResult(id=item['code'] + 'A', name=item['author'], year='', score=item['score'], thumb=item['image'], lang=lang)
                 meta.summary = self.change_html('작품 : {}\n'.format(item['title']) + self.search_result_line() + item['description'])
                 meta.type = "movie"
-                results.Append(meta) 
-        except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+                results.Append(meta)
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
 
@@ -80,7 +79,7 @@ class ModuleAudiobookArtist(AgentBase):
                 data = self.send_info(self.module_name, code[:-1])
                 if data is not None and self.is_write_json(media):
                     self.save_info(media, data)
-            
+
             #data = self.send_info(self.module_name, code)
             Log(self.d(data))
             if 'author' in data:
@@ -90,10 +89,9 @@ class ModuleAudiobookArtist(AgentBase):
                 metadata.summary = data['author_intro']
             if 'poster' in data:
                 metadata.posters[data['poster']] = Proxy.Media(HTTP.Request(data['poster']))
-        except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc()) 
-        
+        except Exception as e:
+            Log.Exception(repr(e))
+
 
 
 
@@ -119,7 +117,7 @@ class ModuleAudiobookArtist(AgentBase):
 
 class ModuleAudiobookAlbum(AgentBase):
     module_name = 'book'
-    
+
     def search(self, results, media, lang, manual, **kwargs):
         try:
             artist_code = media.parent_metadata.id
@@ -167,10 +165,10 @@ class ModuleAudiobookAlbum(AgentBase):
                 meta = MetadataSearchResult(id=item['code'], name=item['title'], year='', score=item['score'], thumb=item['image'], lang=lang)
                 meta.summary = self.change_html('작가 : {}\n'.format(item['author']) + self.search_result_line() + item['description'])
                 meta.type = "movie"
-                results.Append(meta) 
-        except Exception as exception: 
+                results.Append(meta)
+        except Exception as exception:
             Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+            Log(traceback.format_exc())
 
 
     def set_track(self, metadata, media):
@@ -201,7 +199,7 @@ class ModuleAudiobookAlbum(AgentBase):
                 metadata.posters[VARIOUS_ARTISTS_POSTER] = Proxy.Media(HTTP.Request(VARIOUS_ARTISTS_POSTER))
                 self.set_track(metadata, media)
                 return
-                
+
 
             if self.is_read_json(media):
                 info_json = self.get_info_json(media)
@@ -221,7 +219,7 @@ class ModuleAudiobookAlbum(AgentBase):
             metadata.studio = data.get('publisher', '')
             if 'premiered' in data:
                 metadata.originally_available_at = Datetime.ParseDate(data['premiered']).date()
-            
+
             valid_track_keys = []
             for index in media.tracks:
                 filename = os.path.splitext(os.path.basename(media.tracks[index].items[0].parts[0].file))[0]
@@ -231,6 +229,6 @@ class ModuleAudiobookAlbum(AgentBase):
                 t.title = filename.strip(' -._')
                 t.original_title = data.get('author', '')
             metadata.tracks.validate_keys(valid_track_keys)
-        except Exception as exception: 
+        except Exception as exception:
             Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+            Log(traceback.format_exc())

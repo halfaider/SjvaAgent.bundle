@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, urllib2
+import os, urllib, re, unicodedata, urllib2
 from .agent_base import AgentBase
 
 
 class ModuleFtv(AgentBase):
     module_name = 'ftv'
-    
+
     def search(self, results, media, lang, manual):
         try:
             code = self.get_code_from_folderpath(media)
@@ -14,10 +14,9 @@ class ModuleFtv(AgentBase):
             if code != None and code.startswith('F'):
                 meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
                 results.Append(meta)
-                #return  
-        except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())   
+                #return
+        except Exception as e:
+            Log.Exception(repr(e))
 
         try:
             if manual and media.show is not None:
@@ -28,7 +27,7 @@ class ModuleFtv(AgentBase):
                     meta = MetadataSearchResult(id=code, name=code, year='', score=100, thumb="", lang=lang)
                     results.Append(meta)
                     return
-            
+
             if self.is_read_json(media):
                 if manual:
                     self.remove_info(media)
@@ -61,15 +60,14 @@ class ModuleFtv(AgentBase):
 
             return
 
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
-    
+
 
     def update(self, metadata, media, lang):
         #self.base_update(metadata, media, lang)
-        try: 
+        try:
             meta_info = None
             info_json = None
             is_write_json = self.is_write_json(media)
@@ -81,11 +79,11 @@ class ModuleFtv(AgentBase):
             if meta_info is None:
                 meta_info = self.send_info(self.module_name, metadata.id)
                 if meta_info is not None and is_write_json:
-                    self.save_info(media, {'show' : meta_info})        
-           
+                    self.save_info(media, {'show' : meta_info})
+
             #Log(json.dumps(meta_info, indent=4))
             self.update_info(metadata, meta_info, media)
-            
+
             index_list = [index for index in media.seasons]
             index_list = sorted(index_list)
 
@@ -96,7 +94,7 @@ class ModuleFtv(AgentBase):
                     Log('media_season_index is %s', media_season_index)
                     #if media_season_index == '0':
                     #    continue
-                    
+
                     # 포스터
                     # Get episode data.
                     @task
@@ -110,9 +108,9 @@ class ModuleFtv(AgentBase):
                         else:
                             season_meta_info = self.send_info(self.module_name, season_code)
                             if season_meta_info is not None and is_write_json:
-                                self.append_info(media, season_code, season_meta_info) 
+                                self.append_info(media, season_code, season_meta_info)
                         self.update_season(media_season_index, metadata_season, season_meta_info, media)
-                    
+
                         for media_episode_index in media.seasons[media_season_index].episodes:
                             metadata_episode = metadata.seasons[media_season_index].episodes[media_episode_index]
 
@@ -142,13 +140,11 @@ class ModuleFtv(AgentBase):
                                     for item in episode_meta_info['guest']:
                                         meta = metadata_episode.guest_stars.new()
                                         meta.name = item
-                            except Exception as e: 
-                                Log('Exception:%s', e)
-                                Log(traceback.format_exc())
+                            except Exception as e:
+                                Log.Exception(repr(e))
                         Log('UpdateSeason end : %s', media_season_index)
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
 
@@ -156,7 +152,7 @@ class ModuleFtv(AgentBase):
 
     def update_info(self, metadata, meta_info, media):
         metadata.title = meta_info['title']
-        metadata.original_title = meta_info['originaltitle']  
+        metadata.original_title = meta_info['originaltitle']
         try:
             url = 'http://127.0.0.1:32400/library/metadata/%s' % media.id
             data = JSON.ObjectFromURL(url)
@@ -165,9 +161,8 @@ class ModuleFtv(AgentBase):
             url = 'http://127.0.0.1:32400/library/sections/%s/all?type=2&id=%s&originalTitle.value=%s&X-Plex-Token=%s' % (section_id, media.id, urllib.quote(metadata.original_title.encode('utf8')), token)
             request = PutRequest(url)
             response = urllib2.urlopen(request)
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
         metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
@@ -178,7 +173,7 @@ class ModuleFtv(AgentBase):
             elif len(meta_info['studio']) == 0:
                 metadata.studio = ''
         try: metadata.originally_available_at = Datetime.ParseDate(meta_info['premiered']).date()
-        except: pass
+        except Exception: pass
         metadata.content_rating = meta_info['mpaa']
         metadata.summary = meta_info['plot']
         metadata.genres.clear()
@@ -192,7 +187,7 @@ class ModuleFtv(AgentBase):
             for item in meta_info['extras']:
                 url = 'sjva://sjva.me/playvideo/%s|%s' % (item['mode'], item['content_url'])
                 try: metadata.extras.add(self.extra_map[item['content_type'].lower()](url=url, title=self.change_html(item['title']), originally_available_at=Datetime.ParseDate(item['premiered']).date(), thumb=item['thumb']))
-                except: pass
+                except Exception: pass
 
         # rating
         for item in meta_info['ratings']:
@@ -224,7 +219,7 @@ class ModuleFtv(AgentBase):
                 target = art_map[item['aspect']]
                 target[0][item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=target[1]+1)
                 target[1] = target[1] + 1
-            except: pass
+            except Exception: pass
         # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
         metadata.posters.validate_keys(valid_names)
         metadata.art.validate_keys(valid_names)
@@ -233,9 +228,9 @@ class ModuleFtv(AgentBase):
         #metadata_season.art.validate_keys(season_valid_names)
 
         # 테마2
-        
+
         if 'use_theme' in meta_info and meta_info['use_theme']:
-            try: 
+            try:
                 valid_names = []
                 if 'themes' in meta_info['extra_info']:
                     for tmp in meta_info['extra_info']['themes']:
@@ -254,13 +249,12 @@ class ModuleFtv(AgentBase):
                         try:
                             metadata.themes[url] = Proxy.Media(HTTP.Request(url))
                             valid_names.append(url)
-                        except:
+                        except Exception:
                             pass
                 metadata.themes.validate_keys(valid_names)
-            except Exception as e: 
-                Log('Exception:%s', e)
-                Log(traceback.format_exc())
-            
+            except Exception as e:
+                Log.Exception(repr(e))
+
 
 
 
@@ -280,8 +274,8 @@ class ModuleFtv(AgentBase):
                 target = art_map[item['aspect']]
                 target[0][item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=target[1]+1)
                 target[1] = target[1] + 1
-            except: pass 
-        
+            except Exception: pass
+
         metadata_season.summary = meta_info['plot']
         metadata_season.title = meta_info['season_name']
         metadata_season.posters.validate_keys(valid_names)
@@ -299,20 +293,19 @@ class ModuleFtv(AgentBase):
                 filepath = media.seasons[season_no].all_parts()[0].file
                 tmp = os.path.basename(os.path.dirname(filepath))
                 season_title = metadata_season.title
-                
+
                 match = re.search(r'^(Season|시즌)\s(?P<force_season_num>\d{1,8})((\s|\.)(?P<season_title>.*?))?$', tmp, re.IGNORECASE)
-                
+
                 #match = Regex(r'(?P<season_num>\d{1,8})\s*(?P<season_title>.*?)$').search(tmp)
                 if match:
                     if match.group('force_season_num') == season_no and match.group('season_title') is not None:
                         season_title = match.group('season_title')
-                
+
                 url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s&X-Plex-Token=%s' % (section_id, media.seasons[season_no].id, urllib.quote(season_title.encode('utf8')), urllib.quote(metadata_season.summary.encode('utf8')), token)
                 request = PutRequest(url)
                 response = urllib2.urlopen(request)
-            except Exception as e: 
-                Log('Exception:%s', e)
-                Log(traceback.format_exc())
+            except Exception as e:
+                Log.Exception(repr(e))
 
         else:
             # 시즌 title, summary
@@ -324,9 +317,9 @@ class ModuleFtv(AgentBase):
                 url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s&X-Plex-Token=%s' % (section_id, media.seasons[season_no].id, urllib.quote(metadata_season.title.encode('utf8')), urllib.quote(metadata_season.summary.encode('utf8')), token)
                 request = PutRequest(url)
                 response = urllib2.urlopen(request)
-            except Exception as e: 
-                Log('Exception:%s', e)
-                Log(traceback.format_exc())
+            except Exception as e:
+                Log.Exception(repr(e))
+
 
 
 

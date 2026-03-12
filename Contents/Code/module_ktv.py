@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, urllib2
+import os, json, urllib, unicodedata, urllib2
 from .agent_base import AgentBase, PutRequest
 
 
 class ModuleKtv(AgentBase):
     module_name = 'ktv'
-    
+
     def get_year(self, media):
         try:
             data = AgentBase.my_JSON_ObjectFromURL('http://127.0.0.1:32400/library/metadata/%s/children' % media.id)
@@ -13,12 +13,11 @@ class ModuleKtv(AgentBase):
             Log(json.dumps(data, indent=4))
             filename = data['MediaContainer']['Metadata'][0]['Media'][0]['Part'][0]['file']
             ret = os.path.splitext(os.path.basename(filename))[0]
-            match = Regex(r'(?P<date>\d{6})').search(ret) 
+            match = Regex(r'(?P<date>\d{6})').search(ret)
             if match:
                 return match.group('date')
-        except Exception as e: 
-            Log('Exception:%s', e) 
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
     def search(self, results, media, lang, manual):
@@ -31,9 +30,8 @@ class ModuleKtv(AgentBase):
                     meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
                     results.Append(meta)
                     #return
-            except Exception as exception: 
-                Log('Exception:%s', exception)
-                Log(traceback.format_exc())
+            except Exception as e:
+                Log.Exception(repr(e))
 
             # 2021-12-13 닥터 슬럼프 리메이크 FT105262
             if manual and media.show is not None and media.show.startswith('FT'):
@@ -50,9 +48,9 @@ class ModuleKtv(AgentBase):
                         meta = MetadataSearchResult(id=code, name=title, year='', score=100, thumb="", lang=lang)
                         results.Append(meta)
                         return
-                except:
+                except Exception:
                     pass
-            
+
             # KTV|수당영웅
             Log('SEARCH 0: %s' % media.show)
             if manual and media.show is not None and media.show.startswith('KTV'):
@@ -94,13 +92,13 @@ class ModuleKtv(AgentBase):
                             flag_media_season = True
                             break
 
-                # 미디어도 시즌, 메타도 시즌 
+                # 미디어도 시즌, 메타도 시즌
                 if flag_media_season and len(data['series']) > 1:
                     # 마지막 시즌 ID
                     results.Append(MetadataSearchResult(
-                        id=data['series'][-1]['code'], 
-                        name=u'%s | 시리즈' % keyword, 
-                        year=data['series'][-1]['year'], 
+                        id=data['series'][-1]['code'],
+                        name=u'%s | 시리즈' % keyword,
+                        year=data['series'][-1]['year'],
                         score=100, lang=lang)
                     )
 
@@ -178,9 +176,8 @@ class ModuleKtv(AgentBase):
                 self.remove_info(media)
                 self.search(results, media, lang, manual)
 
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
     def update_info(self, metadata, metadata_season,  meta_info, image_urls):
@@ -188,14 +185,14 @@ class ModuleKtv(AgentBase):
         #metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
         metadata.studio = meta_info['studio']
         try: metadata.originally_available_at = Datetime.ParseDate(meta_info['premiered']).date()
-        except: pass
+        except Exception: pass
         metadata.content_rating = meta_info['mpaa']
         metadata.summary = meta_info['plot']
         metadata_season.summary = metadata.summary
         metadata.genres.clear()
         for tmp in meta_info['genre']:
-            metadata.genres.add(tmp) 
-        
+            metadata.genres.add(tmp)
+
         module_prefs = self.get_module_prefs(self.module_name)
         # 부가영상
         for item in meta_info['extras']:
@@ -250,9 +247,9 @@ class ModuleKtv(AgentBase):
                     process[1][image_url] = content
                     season_valid_names.add(image_url)
                 valid_names.add(image_url)
-            except Exception:
-                Log.Exception('')
-                
+            except Exception as e:
+                Log.Exception(repr(e))
+
         # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
         """
         2026-03-11 halfaider
@@ -273,9 +270,9 @@ class ModuleKtv(AgentBase):
                 if tmp not in metadata.themes:
                     valid_names.append(tmp)
                     metadata.themes[tmp] = Proxy.Media(HTTP.Request(tmp).content)
-           
+
         # 테마2
-        
+
         # Get the TVDB id from the Movie Database Agent
         tvdb_id = None
         if 'tmdb_id' in meta_info['extra_info']:
@@ -290,11 +287,11 @@ class ModuleKtv(AgentBase):
         THEME_URL = 'https://tvthemes.plexapp.com/%s.mp3'
         if tvdb_id and THEME_URL % tvdb_id not in metadata.themes:
             tmp = THEME_URL % tvdb_id
-            try: 
+            try:
                 metadata.themes[tmp] = Proxy.Media(HTTP.Request(THEME_URL % tvdb_id))
                 valid_names.append(tmp)
-            except: pass
-        metadata.themes.validate_keys(valid_names)    
+            except Exception: pass
+        metadata.themes.validate_keys(valid_names)
 
 
     def update_episode(self, show_epi_info, episode, media, info_json, is_write_json, frequency=None):
@@ -305,7 +302,7 @@ class ModuleKtv(AgentBase):
                 #if 'tving_id' in meta_info['extra_info']:
                 #    param += ('|' + 'V' + meta_info['extra_info']['tving_id'])
                 episode_info = None
-                
+
                 if info_json is not None and show_epi_info['daum']['code'] in info_json:
                     episode_info = info_json[show_epi_info['daum']['code']]
                 if episode_info is None:
@@ -323,11 +320,11 @@ class ModuleKtv(AgentBase):
                     if site in show_epi_info:
                         thumb_index = 20
                         valid_names.add(show_epi_info[site]['thumb'])
-                        try: 
+                        try:
                             episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Preview(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
                             ott_thumb = True
-                        except: pass
-                
+                        except Exception: pass
+
                 if ott_thumb:
                     return
 
@@ -337,13 +334,13 @@ class ModuleKtv(AgentBase):
                     valid_names.add(item['value'])
                     if item['thumb'] == '':
                         try: episode.thumbs[item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=thumb_index+1)
-                        except: pass
+                        except Exception: pass
                     else:
                         try : episode.thumbs[item['value']] = Proxy.Preview(HTTP.Request(item['thumb']).content, sort_order=thumb_index+1)
-                        except: pass
+                        except Exception: pass
                     thumb_index = thumb_index + 1
                     ott_mode = 'stop'
-                
+
                 # 부가영상
                 module_prefs = self.get_module_prefs(self.module_name)
                 for item in episode_info['extras']:
@@ -368,12 +365,11 @@ class ModuleKtv(AgentBase):
                             valid_names.add(show_epi_info[site]['thumb'])
                             try: episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Preview(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
                             except: pass
-                
+
             episode.thumbs.validate_keys(valid_names)
 
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
 
@@ -399,7 +395,7 @@ class ModuleKtv(AgentBase):
                 if tmp is not None and search_key in tmp:
                     search_data = tmp[search_key]
                     info_json = tmp
-            
+
             if search_data is None:
                 search_data = self.send_search(self.module_name, media.title, False)
                 if search_data is not None and is_write_json:
@@ -421,7 +417,6 @@ class ModuleKtv(AgentBase):
             @parallelize
             def UpdateSeasons():
                 for media_season_index in index_list:
-                    Log('media_season_index is %s', media_season_index)
                     # 2022-04-05
                     search_media_season_index = media_season_index
                     if len(str(media_season_index)) > 2:
@@ -429,7 +424,7 @@ class ModuleKtv(AgentBase):
 
                     if search_media_season_index in ['0', '00']:
                         continue
-                    
+
                     #Log(self.d(search_data['daum']['series']))
                     search_title = media.title.replace(u'[종영]', '')
                     search_title = search_title.split('|')[0].strip()
@@ -439,25 +434,25 @@ class ModuleKtv(AgentBase):
                     # 신과함께3 단일 미디어파일이면 search_media_season_index 1이여서 시즌1이 매칭됨.
                     # 단일 미디어 파일에서는 사용하지 않도록함.
                     # 어짜피 여러 시즌버전을 넣는다면 신과함꼐3도 시즌3으로 바꾸어야함.
-                    search_code = metadata.id            
+                    search_code = metadata.id
                     only_season_title_show = False
                     if flag_media_season and 'daum' in search_data and len(search_data['daum']['series']) > 1:
                         try: #사당보다 먼 의정부보다 가까운 3
                             Log(len(search_data['daum']['series']))
                             search_title = search_data['daum']['series'][int(search_media_season_index)-1]['title']
                             search_code = search_data['daum']['series'][int(search_media_season_index)-1]['code']
-                        except:
+                        except Exception:
                             only_season_title_show = True
-                    
+
                     Log('flag_media_season : %s', flag_media_season)
                     Log('search_title : %s', search_title)
                     Log('search_code : %s', search_code)
                     Log('media_season_index : %s', media_season_index)
                     Log('search_media_season_index: %s', search_media_season_index)
-                    
 
-                    Log('only_season_title_show : %s', only_season_title_show) 
-                    #self.get_json_filepath(media) 
+
+                    Log('only_season_title_show : %s', only_season_title_show)
+                    #self.get_json_filepath(media)
                     #self.get_json_filepath(media.seasons[media_season_index])
 
                     if only_season_title_show == False:
@@ -482,11 +477,11 @@ class ModuleKtv(AgentBase):
                             metadata.title = media.title.split('|')[0].strip()
                         else:
                             metadata.title = meta_info['title']
-                            
 
-                        metadata.original_title = metadata.title                  
+
+                        metadata.original_title = metadata.title
                         metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-                        
+
                         if flag_media_season == False and meta_info['status'] == 2 and  module_prefs['end_noti_filepath'] != '':
                             parts = media.seasons[media_season_index].all_parts()
                             end_noti_filepath = module_prefs['end_noti_filepath'].split('|')
@@ -513,7 +508,7 @@ class ModuleKtv(AgentBase):
                                     show_epi_info = meta_info['extra_info']['episodes'][media_episode_index]
                                     self.update_episode(show_epi_info, episode, media, info_json, is_write_json)
                                 else:
-                                    #에피정보가 없다면 
+                                    #에피정보가 없다면
                                     match = Regex(r'\d{4}-\d{2}-\d{2}').search(media_episode_index)
                                     if match:
                                         for key, value in meta_info['extra_info']['episodes'].items():
@@ -537,8 +532,8 @@ class ModuleKtv(AgentBase):
                                     meta.role = item['role']
                                     meta.name = item['name']
                                     meta.photo = item['thumb']
-        
-            
+
+
             """
             2026-03-12 halfaider
             이걸 해줘야 고아 파일이 안 생김
@@ -559,11 +554,11 @@ class ModuleKtv(AgentBase):
             # 시즌 title, summary
             if is_write_json and only_season_title_show == False:
                 self.save_info(media, info_json)
-            
+
             # 2021-09-15 주석처리함. 임의의 시즌으로 분할하는 경우를 고려
             #if not flag_media_season:
             #    return
-            
+
             url = 'http://127.0.0.1:32400/library/metadata/%s' % media.id
             data = JSON.ObjectFromURL(url)
             section_id = data['MediaContainer']['librarySectionID']
@@ -589,7 +584,7 @@ class ModuleKtv(AgentBase):
                     try:
                         Log("VAR season_title : %s" % season_title)
                         Log("VAR season_title : %s" % metadata_season.summary)
-                    except: pass
+                    except Exception: pass
                     metadata_season = metadata.seasons[media_season_index]
                     if season_title is None:
                         if metadata_season.summary != None:
@@ -602,11 +597,9 @@ class ModuleKtv(AgentBase):
                     Log('URL : %s' % url)
                     request = PutRequest(url)
                     response = urllib2.urlopen(request)
-                except Exception as e: 
-                    Log('Exception:%s', e)
-                    Log(traceback.format_exc())
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
-        
+                except Exception as e:
+                    Log.Exception(repr(e))
+        except Exception as e:
+            Log.Exception(repr(e))
+
 

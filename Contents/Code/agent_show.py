@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, time
+import time
 from .agent_base import AgentBase
 from .module_ktv import ModuleKtv
 from .module_ftv import ModuleFtv
@@ -11,10 +11,10 @@ class AgentShow(Agent.TV_Shows):
     primary_provider = True
     accepts_from = ['com.plexapp.agents.localmedia', 'com.plexapp.agents.localmediapatch', 'com.plexapp.agents.xbmcnfo']
     contributes_to = ['com.plexapp.agents.xbmcnfo']
-    
+
     instance_list = {
-        'K' : ModuleKtv(), 
-        'F' : ModuleFtv(), 
+        'K' : ModuleKtv(),
+        'F' : ModuleFtv(),
         'Y' : ModuleYamlShow(),
     }
 
@@ -33,13 +33,13 @@ class AgentShow(Agent.TV_Shows):
         if key == 'F':
             if ret == False:
                 ret = self.instance_list['K'].search(results, media, lang, manual)
-        
+
 
     def update(self, metadata, media, lang):
         Log('updata : %s', metadata.id)
-        # 2022-02-06 
+        # 2022-02-06
         # 파일로 된 부가영상이 먼저 나오게 순서 변경
-        # Y로 호출할 뿐 모듈은 상관 없음. static function 
+        # Y로 호출할 뿐 모듈은 상관 없음. static function
         if self.instance_list['Y'].is_show_extra(media):
             import local_tv_extras
             local_tv_extras.update(metadata, media)
@@ -48,7 +48,6 @@ class AgentShow(Agent.TV_Shows):
         if metadata.id[0] != 'Y':
             self.instance_list['Y'].update(metadata, media, lang, is_primary=False)
 
-        
-        
 
-        
+
+

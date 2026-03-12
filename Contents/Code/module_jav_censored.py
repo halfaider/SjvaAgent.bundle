@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, urllib2
+import os, re, unicodedata
 from .agent_base import AgentBase
 
 class ModuleJavCensoredBase(AgentBase):
@@ -13,7 +13,7 @@ class ModuleJavCensoredBase(AgentBase):
                     filename = data['MediaContainer']['Metadata'][0]['Media'][0]['Part'][0]['file']
                     ret = os.path.splitext(os.path.basename(filename))[0]
                     ret = re.sub('\s*\[.*?\]', '', ret).strip()
-                    match = Regex(r'(?P<cd>cd\d{1,2})$').search(ret) 
+                    match = Regex(r'(?P<cd>cd\d{1,2})$').search(ret)
                     if match:
                         ret = ret.replace(match.group('cd'), '').strip()
                 else:
@@ -21,9 +21,8 @@ class ModuleJavCensoredBase(AgentBase):
                     ret = media.name
             ret = ret.replace(' ', '-').replace('JAVALL|', '')
             return ret
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
     def base_search(self, results, media, lang, manual, keyword):
@@ -32,7 +31,7 @@ class ModuleJavCensoredBase(AgentBase):
             meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
             results.Append(meta)
             return True
-        
+
         if self.is_read_json(media):
             if manual:
                 self.remove_info(media)
@@ -56,7 +55,7 @@ class ModuleJavCensoredBase(AgentBase):
             meta = MetadataSearchResult(id=item['code'], name=title, year=year, score=item['score'], thumb=item['image_url'], lang=lang)
             meta.summary = self.change_html(item['title_ko'])
             meta.type = "movie"
-            results.Append(meta) 
+            results.Append(meta)
         if len(data) > 0 and data[0]['score'] >= 80:
             return True
         return False
@@ -74,16 +73,16 @@ class ModuleJavCensoredBase(AgentBase):
             data = self.send_info(self.module_name, metadata.id)
             if data is not None and self.is_write_json(media):
                 self.save_info(media, data)
-  
+
         #Log(json.dumps(data, indent=4))
         if 'title' in data and data['title'] is not None:
             metadata.title = self.change_html(data['title'])
         if 'originaltitle' in data and data['originaltitle'] is not None:
             metadata.original_title = metadata.title_sort = data['originaltitle']
         try: metadata.year = data['year']
-        except: pass
+        except Exception: pass
         try: metadata.duration = data['runtime']*60
-        except: pass
+        except Exception: pass
         if 'studio' in data and data['studio'] is not None:
             metadata.studio = data['studio']
         if 'plot' in data and data['plot'] is not None:
@@ -105,26 +104,25 @@ class ModuleJavCensoredBase(AgentBase):
                     #metadata.audience_rating = float(data['ratings'][0]['value']) * 2
                     #metadata.audience_rating_image = 'rottentomatoes://image.rating.upright'
 
-        except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
-        ProxyClass = Proxy.Preview 
+        ProxyClass = Proxy.Preview
         landscape = None
         if 'thumb' in data and data['thumb'] is not None:
             for item in data['thumb']:
                 if item['aspect'] == 'poster':
                     try: metadata.posters[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=10)
-                    except: pass
+                    except Exception: pass
                 if item['aspect'] == 'landscape':
                     landscape = item['value']
                     try: metadata.art[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=10)
-                    except: pass
+                    except Exception: pass
 
         if 'fanart' in data and data['fanart'] is not None:
             for item in data['fanart']:
                 try: metadata.art[item] = ProxyClass(HTTP.Request(item).content)
-                except: pass
+                except Exception: pass
 
         if 'genre' in data and data['genre'] is not None:
             metadata.genres.clear()
@@ -159,7 +157,7 @@ class ModuleJavCensoredBase(AgentBase):
     def search(self, results, media, lang, manual):
         keyword = self.get_search_keyword(media, manual, from_file=True)
         return self.base_search(results, media, lang, manual, keyword)
- 
+
     def update(self, metadata, media, lang):
         self.base_update(metadata, media, lang)
 

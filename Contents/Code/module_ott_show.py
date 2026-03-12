@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, urllib2
+import json
 from .agent_base import AgentBase
 
 
@@ -17,7 +17,7 @@ class ModuleOttShow(AgentBase):
                 return
             Log(json.dumps(search_data, indent=4))
 
-            
+
             def func(show_list):
                 for idx, item in enumerate(show_list):
                     meta = MetadataSearchResult(id=item['code'], name=item['title'], score=item['score'], thumb=item['image_url'], lang=lang)
@@ -29,9 +29,8 @@ class ModuleOttShow(AgentBase):
             if 'wavve' in search_data:
                 func(search_data['wavve'])
 
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
 
@@ -50,8 +49,8 @@ class ModuleOttShow(AgentBase):
             metadata.genres.clear()
             for tmp in meta_info['genre']:
                 metadata.genres.add(tmp)
-            
-            
+
+
 
             # rating
             for item in meta_info['ratings']:
@@ -66,10 +65,10 @@ class ModuleOttShow(AgentBase):
                     actor = metadata.roles.new()
                     actor.role = item['role']
                     actor.name = item['name']
-                    actor.photo = item['thumb'] 
+                    actor.photo = item['thumb']
 
             # poster
-            ProxyClass = Proxy.Preview 
+            ProxyClass = Proxy.Preview
             valid_names = []
             poster_index = art_index = banner_index = 0
             for item in sorted(meta_info['thumb'], key=lambda k: k['score'], reverse=True):
@@ -91,7 +90,7 @@ class ModuleOttShow(AgentBase):
                         metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=banner_index+1)
                     else:
                         metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=banner_index+1)
-                    banner_index = banner_index + 1  
+                    banner_index = banner_index + 1
 
             metadata.posters.validate_keys(valid_names)
             metadata.art.validate_keys(valid_names)
@@ -102,21 +101,20 @@ class ModuleOttShow(AgentBase):
             module_prefs = self.get_module_prefs(self.module_name)
             for no in no_list:
                 info = meta_info['extra_info']['episodes'][str(no)]
-                Log(no)      
-                Log(info) 
+                Log(no)
+                Log(info)
 
                 for site in ['tving', 'wavve']:
                     if site in info:
                         url = 'sjva://sjva.me/playvideo/%s|%s' % (site, info[site]['code'])
                         title = info[site]['title'] if info[site]['title'] != '' else info[site]['plot']
                         extra_media = FeaturetteObject(
-                            url=url, 
+                            url=url,
                             title='%s회. %s' % (no, title),
                             thumb=info[site]['thumb'],
                         )
                         metadata.extras.add(extra_media)
-        except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(repr(e))
 
 
