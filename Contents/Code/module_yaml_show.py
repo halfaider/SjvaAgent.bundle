@@ -204,7 +204,8 @@ class ModuleYamlShow(ModuleYamlBase):
         url = 'http://127.0.0.1:32400/library/metadata/%s' % media.id
         data = JSON.ObjectFromURL(url)
         section_id = data['MediaContainer']['librarySectionID']
-        token = Request.Headers['X-Plex-Token']
+        #token = Request.Headers['X-Plex-Token']
+        token = self.get_token()
         media_season_id = media.seasons[media_season_index].id
 
         url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&X-Plex-Token=%s' % (section_id, media_season_id, token)

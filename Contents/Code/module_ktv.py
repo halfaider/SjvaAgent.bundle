@@ -234,19 +234,22 @@ class ModuleKtv(AgentBase):
             """
             if not process or not image_url or image_url in image_urls[aspect]:
                 continue
-            """
-            2026-03-12 halfaider
-            update()에서 validate_keys() 하기 위해
-            """
-            image_urls[aspect].add(image_url)
             try:
+                image_data = HTTP.Request(image_url).content
+                if not image_data:
+                    continue
                 process[2] = process[2] + 1
-                content = ProxyClass(HTTP.Request(image_url).content, sort_order=process[2])
+                content = ProxyClass(image_data, sort_order=process[2])
+                """
+                2026-03-12 halfaider
+                update()에서 validate_keys() 하기 위해
+                """
+                image_urls[aspect].add(image_url)
+                valid_names.add(image_url)
                 process[0][image_url] = content
-                if process[1]:
+                if process[1] is not None:
                     process[1][image_url] = content
                     season_valid_names.add(image_url)
-                valid_names.add(image_url)
             except Exception as e:
                 Log.Exception(repr(e))
 
@@ -404,6 +407,7 @@ class ModuleKtv(AgentBase):
 
             index_list = [index for index in media.seasons]
             index_list = sorted(index_list)
+            Log('SEASON INDEX: %s', index_list)
             #for media_season_index in media.seasons:
 
             image_urls = {
@@ -438,7 +442,7 @@ class ModuleKtv(AgentBase):
                     only_season_title_show = False
                     if flag_media_season and 'daum' in search_data and len(search_data['daum']['series']) > 1:
                         try: #사당보다 먼 의정부보다 가까운 3
-                            Log(len(search_data['daum']['series']))
+                            Log("search series size: %s", len(search_data['daum']['series']))
                             search_title = search_data['daum']['series'][int(search_media_season_index)-1]['title']
                             search_code = search_data['daum']['series'][int(search_media_season_index)-1]['code']
                         except Exception:
@@ -471,6 +475,8 @@ class ModuleKtv(AgentBase):
                         Log("SEARCH_CODE: %s", search_code)
                         Log("TITLE: %s", meta_info['title'])
                         Log("SUMMARY: %s", meta_info['plot'])
+                        Log("METAINFO_CODE: %s", meta_info['code'])
+                        Log("METAINFO_SEASON: %s", meta_info['season'])
                         #Log(json.dumps(meta_info, indent=4))
 
                         if flag_media_season:
@@ -501,7 +507,7 @@ class ModuleKtv(AgentBase):
                             episode = metadata.seasons[media_season_index].episodes[media_episode_index]
 
                             @task
-                            def UpdateEpisode(episode=episode, media_season_index=media_season_index, media_episode_index=media_episode_index, media=media):
+                            def UpdateEpisode(episode=episode, media_episode_index=media_episode_index, media=media, meta_info=meta_info, info_json=info_json, is_write_json=is_write_json):
                                 frequency = False
                                 show_epi_info = None
                                 if media_episode_index in meta_info['extra_info']['episodes']:
@@ -562,7 +568,8 @@ class ModuleKtv(AgentBase):
             url = 'http://127.0.0.1:32400/library/metadata/%s' % media.id
             data = JSON.ObjectFromURL(url)
             section_id = data['MediaContainer']['librarySectionID']
-            token = Request.Headers['X-Plex-Token']
+            #token = Request.Headers['X-Plex-Token']
+            token = self.get_token()
             for media_season_index in media.seasons:
                 Log('media_season_index is %s', media_season_index)
                 if media_season_index == '0':
@@ -574,7 +581,7 @@ class ModuleKtv(AgentBase):
                     if tmp != metadata.title:
                         Log(tmp)
                         match = Regex(r'(?P<season_num>\d{1,8})\s*(?P<season_title>.*?)$').search(tmp)
-                        Log('MATCH: %s' % match)
+                        Log('MATCH: %s' % repr(match.groups()))
                         if match and (tmp.startswith(u'시즌 ') or tmp.startswith(u'Season ')):
                             Log('FORCE season_num : %s', match.group('season_num'))
                             Log('FORCE season_title : %s', match.group('season_title'))
