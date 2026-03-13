@@ -68,7 +68,7 @@ class ModuleOttShow(AgentBase):
                     actor.photo = item['thumb']
 
             # poster
-            ProxyClass = Proxy.Preview
+            ProxyClass = Proxy.Media
             valid_names = []
             poster_index = art_index = banner_index = 0
             for item in sorted(meta_info['thumb'], key=lambda k: k['score'], reverse=True):

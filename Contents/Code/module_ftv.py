@@ -125,7 +125,7 @@ class ModuleFtv(AgentBase):
                                     except: pass
                                     metadata_episode.title = episode_meta_info['title']
                                     metadata_episode.summary = episode_meta_info['plot']
-                                    try: metadata_episode.thumbs[episode_meta_info['art'][-1]] = Proxy.Preview(HTTP.Request(episode_meta_info['art'][-1]).content, sort_order=1)
+                                    try: metadata_episode.thumbs[episode_meta_info['art'][-1]] = Proxy.Media(HTTP.Request(episode_meta_info['art'][-1]).content, sort_order=1)
                                     except: pass
 
                                     metadata_episode.directors.clear()
@@ -217,7 +217,7 @@ class ModuleFtv(AgentBase):
             valid_names.add(item['value'])
             try:
                 target = art_map[item['aspect']]
-                target[0][item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=target[1]+1)
+                target[0][item['value']] = Proxy.Media(HTTP.Request(item['value']).content, sort_order=target[1]+1)
                 target[1] = target[1] + 1
             except Exception: pass
         # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
@@ -272,7 +272,7 @@ class ModuleFtv(AgentBase):
             valid_names.add(item['value'])
             try:
                 target = art_map[item['aspect']]
-                target[0][item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=target[1]+1)
+                target[0][item['value']] = Proxy.Media(HTTP.Request(item['value']).content, sort_order=target[1]+1)
                 target[1] = target[1] + 1
             except Exception: pass
 

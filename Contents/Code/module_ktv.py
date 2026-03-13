@@ -216,7 +216,7 @@ class ModuleKtv(AgentBase):
                 Log('%s - %s'% (actor.name, actor.photo))
 
         # poster
-        ProxyClass = Proxy.Preview
+        ProxyClass = Proxy.Media
         valid_names = set()
         season_valid_names = set()
         poster_templates = {
@@ -236,7 +236,8 @@ class ModuleKtv(AgentBase):
                 continue
             try:
                 image_data = HTTP.Request(image_url).content
-                if not image_data:
+                if not image_data or len(image_data) < 64:
+                    Log.error("유효하지 않은 이미지 데이터: %s", image_url)
                     continue
                 process[2] = process[2] + 1
                 content = ProxyClass(image_data, sort_order=process[2])
@@ -324,7 +325,7 @@ class ModuleKtv(AgentBase):
                         thumb_index = 20
                         valid_names.add(show_epi_info[site]['thumb'])
                         try:
-                            episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Preview(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
+                            episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Media(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
                             ott_thumb = True
                         except Exception: pass
 
@@ -336,10 +337,10 @@ class ModuleKtv(AgentBase):
                 for item in sorted(episode_info['thumb'], key=lambda k: k['score'], reverse=True):
                     valid_names.add(item['value'])
                     if item['thumb'] == '':
-                        try: episode.thumbs[item['value']] = Proxy.Preview(HTTP.Request(item['value']).content, sort_order=thumb_index+1)
+                        try: episode.thumbs[item['value']] = Proxy.Media(HTTP.Request(item['value']).content, sort_order=thumb_index+1)
                         except Exception: pass
                     else:
-                        try : episode.thumbs[item['value']] = Proxy.Preview(HTTP.Request(item['thumb']).content, sort_order=thumb_index+1)
+                        try : episode.thumbs[item['value']] = Proxy.Media(HTTP.Request(item['thumb']).content, sort_order=thumb_index+1)
                         except Exception: pass
                     thumb_index = thumb_index + 1
                     ott_mode = 'stop'
@@ -366,7 +367,7 @@ class ModuleKtv(AgentBase):
                         if ott_mode in ['full', 'only_thumb']:
                             thumb_index = 20
                             valid_names.add(show_epi_info[site]['thumb'])
-                            try: episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Preview(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
+                            try: episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Media(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
                             except: pass
 
             episode.thumbs.validate_keys(valid_names)
@@ -544,18 +545,16 @@ class ModuleKtv(AgentBase):
             2026-03-12 halfaider
             이걸 해줘야 고아 파일이 안 생김
             """
-            for image_bucket in (metadata.posters, metadata.art, metadata.banners):
-                image_bucket.validate_keys(image_bucket.keys())
-            #for aspect, urls in image_urls.items():
-            #    if aspect == 'poster':
-            #        bucket = metadata.posters
-            #    elif aspect == 'landscape':
-            #        bucket = metadata.art
-            #    elif aspect == 'banner':
-            #        bucket = metadata.banners
-            #    else:
-            #        continue
-            #    bucket.validate_keys(urls)
+            for aspect, urls in image_urls.items():
+                if aspect == 'poster':
+                    bucket = metadata.posters
+                elif aspect == 'landscape':
+                    bucket = metadata.art
+                elif aspect == 'banner':
+                    bucket = metadata.banners
+                else:
+                    continue
+                bucket.validate_keys(urls)
 
             # 시즌 title, summary
             if is_write_json and only_season_title_show == False:

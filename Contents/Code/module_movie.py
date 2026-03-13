@@ -169,7 +169,7 @@ class ModuleMovie(AgentBase):
                 actor.name = item
 
             # art
-            ProxyClass = Proxy.Preview
+            ProxyClass = Proxy.Media
             valid_names = []
             poster_index = art_index = banner_index = 0
             art_list = []

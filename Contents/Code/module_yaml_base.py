@@ -262,7 +262,7 @@ class ModuleYamlBase(AgentBase):
                         elif tmp.startswith('https://cdn.discordapp.com/attachments'):
                             ddns = Prefs['server'].rstrip('/')
                             tmp = tmp.replace('https://cdn.discordapp.com', ddns)
-                        meta[tmp] = Proxy.Preview(HTTP.Request(tmp).content, sort_order=idx+1)
+                        meta[tmp] = Proxy.Media(HTTP.Request(tmp).content, sort_order=idx+1)
                     except Exception:
                         Log.Exception('')
                 if is_primary:
