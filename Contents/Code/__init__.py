@@ -33,9 +33,9 @@ def Start():
     HTTP.Request = ORIGINAL_HTTP_REQUEST_FUNC
     HTTP.Request = request_wrapper(HTTP.Request)
     Proxy.Preview = ORIGINAL_PROXY_PREVIEW_FUNC
-    Proxy.Preview = preview_wrapper(Proxy.Preview)
+    Proxy.Preview = proxy_wrapper(Proxy.Preview)
     Proxy.Media = ORIGINAL_PROXY_MEDIA_FUNC
-    Proxy.Preview = preview_wrapper(Proxy.Media)
+    Proxy.Media = proxy_wrapper(Proxy.Media)
     Framework.components.storage.Storage.save = ORIGINAL_STORAGE_SAVE_FUNC
     Framework.components.storage.Storage.save = storage_save_wrapper(Framework.components.storage.Storage.save)
     Log.Debug("ffmpeg 경로: %s", FFMPEG_PATH)
@@ -132,7 +132,7 @@ def request_wrapper(func):
     return wrapped
 
 
-def preview_wrapper(func):
+def proxy_wrapper(func):
     @functools.wraps(func)
     def wrapped(*args, **kwds):
         try:
