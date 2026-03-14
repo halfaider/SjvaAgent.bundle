@@ -339,8 +339,7 @@ class ModuleKtv(AgentBase):
                 Log.Exception('')
             if valid_thumb_names:
                 break
-        if valid_thumb_names:
-            episode.thumbs.validate_keys(valid_thumb_names)
+        episode.thumbs.validate_keys(valid_thumb_names)
         
         for site in site_orders:
             try:
@@ -552,8 +551,7 @@ class ModuleKtv(AgentBase):
                     bucket = metadata.banners
                 else:
                     continue
-                if urls:
-                    bucket.validate_keys(urls)
+                bucket.validate_keys(urls)
 
             # 시즌 title, summary
             if is_write_json and only_season_title_show == False:
