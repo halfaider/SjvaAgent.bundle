@@ -16,7 +16,7 @@ class ModuleFtv(AgentBase):
                 results.Append(meta)
                 #return
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
         try:
             if manual and media.show is not None:
@@ -61,7 +61,7 @@ class ModuleFtv(AgentBase):
             return
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
 
@@ -98,7 +98,7 @@ class ModuleFtv(AgentBase):
                     # 포스터
                     # Get episode data.
                     @task
-                    def UpdateSeason(media_season_index=media_season_index,  media=media):
+                    def UpdateSeason(metadata=metadata, media=media, media_season_index=media_season_index, info_json=info_json, is_write_json=is_write_json):
                         Log('UpdateSeason : %s', media_season_index)
                         metadata_season = metadata.seasons[media_season_index]
                         media_season_index_for_meta = int(media_season_index) % 100
@@ -122,11 +122,15 @@ class ModuleFtv(AgentBase):
                                 if idx_str in season_meta_info['episodes']:
                                     episode_meta_info = season_meta_info['episodes'][idx_str]
                                     try: metadata_episode.originally_available_at = Datetime.ParseDate(episode_meta_info['premiered']).date()
-                                    except: pass
+                                    except Exception: pass
                                     metadata_episode.title = episode_meta_info['title']
                                     metadata_episode.summary = episode_meta_info['plot']
-                                    try: metadata_episode.thumbs[episode_meta_info['art'][-1]] = Proxy.Media(HTTP.Request(episode_meta_info['art'][-1]).content, sort_order=1)
-                                    except: pass
+                                    try:
+                                        valid_names = set()
+                                        image_url = episode_meta_info['art'][-1]
+                                        self.set_http_data(image_url, metadata_episode.thumbs, valid_names)
+                                        metadata_episode.thumbs.validate_keys(valid_names)
+                                    except Exception: pass
 
                                     metadata_episode.directors.clear()
                                     metadata_episode.producers.clear()
@@ -141,10 +145,10 @@ class ModuleFtv(AgentBase):
                                         meta = metadata_episode.guest_stars.new()
                                         meta.name = item
                             except Exception as e:
-                                Log.Exception(repr(e))
+                                Log.Exception(str(e))
                         Log('UpdateSeason end : %s', media_season_index)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
 
@@ -162,7 +166,7 @@ class ModuleFtv(AgentBase):
             request = PutRequest(url)
             response = urllib2.urlopen(request)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
         metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
@@ -209,23 +213,20 @@ class ModuleFtv(AgentBase):
 
         # poster
         valid_names = set()
-        poster_index = art_index = banner_index = 0
         art_map = {'poster': [metadata.posters, 0], 'landscape' : [metadata.art, 0], 'banner':[metadata.banners, 0]}
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
-            if item['value'] in valid_names:
-                continue
-            valid_names.add(item['value'])
             try:
                 target = art_map[item['aspect']]
-                target[0][item['value']] = Proxy.Media(HTTP.Request(item['value']).content, sort_order=target[1]+1)
-                target[1] = target[1] + 1
-            except Exception: pass
-        # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
+                image_url = item.get('thumb') or item.get('value')
+                if not image_url or image_url in valid_names:
+                    continue
+                if self.set_http_data(image_url, target[0], valid_names, target[1] + 1):
+                    target[1] = target[1] + 1
+            except Exception:
+                Log.Exception('포스터 다운로드 중 오류')
         metadata.posters.validate_keys(valid_names)
         metadata.art.validate_keys(valid_names)
         metadata.banners.validate_keys(valid_names)
-        #metadata_season.posters.validate_keys(season_valid_names)
-        #metadata_season.art.validate_keys(season_valid_names)
 
         # 테마2
 
@@ -235,8 +236,15 @@ class ModuleFtv(AgentBase):
                 if 'themes' in meta_info['extra_info']:
                     for tmp in meta_info['extra_info']['themes']:
                         if tmp not in metadata.themes:
-                            valid_names.append(tmp)
-                            metadata.themes[tmp] = Proxy.Media(HTTP.Request(tmp).content)
+                            try:
+                                theme_data = HTTP.Request(tmp).content
+                                if theme_data and len(theme_data) > 16:
+                                    metadata.themes[tmp] = Proxy.Media(theme_data)
+                                    valid_names.append(tmp)
+                                else:
+                                    Log.Warn("유효하지 않은 데이터: %s", theme_data)
+                            except Exception:
+                                pass
                 tvdb_id = None
                 for tmp in meta_info['code_list']:
                     if tmp[0] == 'tvdb_id':
@@ -247,13 +255,17 @@ class ModuleFtv(AgentBase):
                     Log('테마 : %s', url)
                     if url not in metadata.themes:
                         try:
-                            metadata.themes[url] = Proxy.Media(HTTP.Request(url))
-                            valid_names.append(url)
+                            theme_data = HTTP.Request(url).content
+                            if theme_data and len(theme_data) > 16:
+                                metadata.themes[url] = Proxy.Media(theme_data)
+                                valid_names.append(url)
+                            else:
+                                Log.Warn("유효하지 않은 데이터: %s", theme_data)
                         except Exception:
                             pass
                 metadata.themes.validate_keys(valid_names)
             except Exception as e:
-                Log.Exception(repr(e))
+                Log.Exception(str(e))
 
 
 
@@ -267,14 +279,20 @@ class ModuleFtv(AgentBase):
         art_map = {'poster': [metadata_season.posters, 0], 'landscape' : [metadata_season.art, 0], 'banner':[metadata_season.banners, 0]}
         Log('Season no : %s' % season_no)
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
-            if item['value'] in valid_names:
-                continue
-            valid_names.add(item['value'])
             try:
                 target = art_map[item['aspect']]
-                target[0][item['value']] = Proxy.Media(HTTP.Request(item['value']).content, sort_order=target[1]+1)
+                image_url = item.get('thumb') or item.get('value')
+                if not image_url or image_url in target[0]:
+                    continue
+                image_data = HTTP.Request(image_url).content
+                if not image_data or len(image_data) < 16:
+                    Log.Warn("유효하지 않은 이미지 데이터: %s", image_url)
+                    continue
                 target[1] = target[1] + 1
-            except Exception: pass
+                target[0][image_url] = Proxy.Media(image_data, sort_order=target[1])
+                valid_names.add(image_url)
+            except Exception:
+                Log.Exception('시즌 포스터 다운로드 중 오류')
 
         metadata_season.summary = meta_info['plot']
         metadata_season.title = meta_info['season_name']
@@ -305,7 +323,7 @@ class ModuleFtv(AgentBase):
                 request = PutRequest(url)
                 response = urllib2.urlopen(request)
             except Exception as e:
-                Log.Exception(repr(e))
+                Log.Exception(str(e))
 
         else:
             # 시즌 title, summary
@@ -318,7 +336,7 @@ class ModuleFtv(AgentBase):
                 request = PutRequest(url)
                 response = urllib2.urlopen(request)
             except Exception as e:
-                Log.Exception(repr(e))
+                Log.Exception(str(e))
 
 
 

@@ -30,7 +30,7 @@ class ModuleOttShow(AgentBase):
                 func(search_data['wavve'])
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
 
@@ -68,29 +68,21 @@ class ModuleOttShow(AgentBase):
                     actor.photo = item['thumb']
 
             # poster
-            ProxyClass = Proxy.Media
             valid_names = []
             poster_index = art_index = banner_index = 0
             for item in sorted(meta_info['thumb'], key=lambda k: k['score'], reverse=True):
-                valid_names.append(item['value'])
+                image_url = item.get('thumb') or item.get('value')
+                if not image_url or image_url in valid_names:
+                    continue
                 if item['aspect'] == 'poster':
-                    if item['thumb'] == '':
-                        metadata.posters[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=poster_index+1)
-                    else:
-                        metadata.posters[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=poster_index+1)
-                    poster_index = poster_index + 1
+                    if self.set_http_data(image_url, metadata.posters, valid_names, poster_index + 1):
+                        poster_index = poster_index + 1
                 elif item['aspect'] == 'landscape':
-                    if item['thumb'] == '':
-                        metadata.art[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=art_index+1)
-                    else:
-                        metadata.art[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=art_index+1)
-                    art_index = art_index + 1
+                    if self.set_http_data(image_url, metadata.art, valid_names, art_index + 1):
+                        art_index = art_index + 1
                 elif item['aspect'] == 'banner':
-                    if item['thumb'] == '':
-                        metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=banner_index+1)
-                    else:
-                        metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=banner_index+1)
-                    banner_index = banner_index + 1
+                    if self.set_http_data(image_url, metadata.banners, valid_names, banner_index + 1):
+                        banner_index = banner_index + 1
 
             metadata.posters.validate_keys(valid_names)
             metadata.art.validate_keys(valid_names)
@@ -115,6 +107,6 @@ class ModuleOttShow(AgentBase):
                         )
                         metadata.extras.add(extra_media)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 

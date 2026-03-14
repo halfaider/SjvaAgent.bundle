@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, random, time, io
+import unicodedata, time
 from .module_yaml_base import ModuleYamlBase
-import yaml
 
 class ModuleYamlMovie(ModuleYamlBase):
     module_name = 'yaml_movie'
@@ -40,8 +39,7 @@ class ModuleYamlMovie(ModuleYamlBase):
             results.Append(meta) 
             return True
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+            Log.Exception(str(exception))
         return False
 
 
@@ -53,7 +51,7 @@ class ModuleYamlMovie(ModuleYamlBase):
                 return False
             data = self.yaml_load(filepath)
             try: Log(self.d(data))
-            except: pass
+            except Exception: pass
             if is_primary:
                 metadata.title = self.get(data, 'title', media.title)
                 metadata.original_title = self.get(data, 'original_title', metadata.title)
@@ -93,5 +91,4 @@ class ModuleYamlMovie(ModuleYamlBase):
             self.set_data_reviews(metadata, data, 'reviews', is_primary)
             self.set_data_extras(metadata, data, 'extras', is_primary)
         except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+            Log.Exception(str(e))

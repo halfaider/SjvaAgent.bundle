@@ -22,7 +22,7 @@ class ModuleJavCensoredBase(AgentBase):
             ret = ret.replace(' ', '-').replace('JAVALL|', '')
             return ret
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def base_search(self, results, media, lang, manual, keyword):
@@ -105,7 +105,7 @@ class ModuleJavCensoredBase(AgentBase):
                     #metadata.audience_rating_image = 'rottentomatoes://image.rating.upright'
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
         ProxyClass = Proxy.Preview
         landscape = None

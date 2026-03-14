@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 import json
 import os
-import re
 import time
 import traceback
-import unicodedata
 import urllib
 
 # /:/plugins/com.plexapp.agents.sjva_agent/function/version?X-Plex-Token=%s' % (server_url, server_token)
@@ -27,8 +25,7 @@ def kakao(content_id):
         Log('Kakao : %s', video_url)
         return Redirect(video_url)
     except Exception as e: 
-        Log('Exception:%s', e)
-        Log(traceback.format_exc())
+        Log.Exception(str(e))
 
 @route('/wavve') 
 def wavve(sjva_url):
@@ -39,8 +36,7 @@ def wavve(sjva_url):
         video_url = data['playurl']
         return Redirect(video_url)
     except Exception as e: 
-        Log('Exception:%s', e)
-        Log(traceback.format_exc())
+        Log.Exception(str(e))
 
 
 
@@ -58,7 +54,7 @@ def get_lyric(mode, filename, artist, track):
             Log(data)
             lyric = data['data'] if data['ret'] == 'success' else data['log']
         except Exception as e: 
-            Log('Exception:%s', e)
+            Log.Exception(str(e))
             lyric = str(traceback.format_exc())
     Log(lyric)
     return lyric
@@ -83,7 +79,7 @@ def get_lyric2(mode, track_key):
             #Log(d(data))
             lyric = data['data'] if data['ret'] == 'success' else data['log']
         except Exception as e: 
-            Log('Exception:%s', e)
+            Log.Exception(str(e))
             lyric = str(traceback.format_exc())
     #Log(lyric)
     return lyric
@@ -117,7 +113,7 @@ def music_normal_lyric(mode, song_id, track_key):
             #Log(d(data))
             lyric = data['lyric'] if data['ret'] == 'success' else data['log']
         except Exception as e: 
-            Log('Exception:%s', e)
+            Log.Exception(str(e))
             lyric = str(traceback.format_exc())
     return lyric
 
@@ -130,7 +126,7 @@ def yaml_lyric(track_key, lyric_index, album_key, track_code, disc_index, track_
         data = mod.yaml_load(mod.get_yaml_filepath(album_key, 'album'))
         lyric = data['tracks'][str(disc_index)][str(track_index)]['lyrics'][int(lyric_index)]['data']
     except Exception as e: 
-        Log('Exception:%s', e)
+        Log.Exception(str(e))
         lyric = str(traceback.format_exc())
     return lyric
 
@@ -191,8 +187,7 @@ def get_folderpath(key):
                 ret['ret'] = 'show_error_not_exist_location'
         Log('get_folderpath 위치 : %s' % d(ret))
     except Exception as e: 
-        Log('Exception:%s', e)
-        Log(traceback.format_exc())
+        Log.Exception(str(e))
         ret = {'ret':'exception', 'log':str(e)}
     return (ret)
 
@@ -232,7 +227,6 @@ def attach(url):
         data = '\n'.join(new)
         return data
     except Exception as e: 
-        Log('Exception:%s', e)
-        Log(traceback.format_exc())
+        Log.Exception(str(e))
 
 """

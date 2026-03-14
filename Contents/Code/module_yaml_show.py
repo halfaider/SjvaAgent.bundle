@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
-import os, traceback, json, urllib, re, unicodedata, random, time, io, urllib2
+import os, urllib, unicodedata, time, urllib2
 from .agent_base import PutRequest
 from .module_yaml_base import ModuleYamlBase
-import yaml
 
 class ModuleYamlShow(ModuleYamlBase):
     module_name = 'yaml_show'
@@ -38,8 +37,7 @@ class ModuleYamlShow(ModuleYamlBase):
             results.Append(meta) 
             return True
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+            Log.Exception(str(exception))
         return False
 
 
@@ -76,8 +74,7 @@ class ModuleYamlShow(ModuleYamlBase):
                 if filepath_list['show'] is not None:
                     data = self.yaml_load(filepath_list['show'])
             except Exception as exception: 
-                Log('Exception:%s', exception)
-                Log(traceback.format_exc())  
+                Log.Exception(str(exception))
             finally:
                 if 'seasons' not in data:
                     data['seasons'] = {}
@@ -87,7 +84,7 @@ class ModuleYamlShow(ModuleYamlBase):
                     try:
                         if str(season['index']) not in to_dict:
                             to_dict[str(season['index'])] = season
-                    except:
+                    except Exception:
                         pass
                 data['seasons'] = to_dict
 
@@ -99,8 +96,7 @@ class ModuleYamlShow(ModuleYamlBase):
                     if 'index' in tmp:
                         data['seasons'][str(tmp['index'])] = tmp
                 except Exception as exception: 
-                    Log('Exception:%s', exception)
-                    Log(traceback.format_exc())  
+                    Log.Exception(str(exception))
 
             # episodes to dict
             for season_index, season in data['seasons'].items():
@@ -110,7 +106,7 @@ class ModuleYamlShow(ModuleYamlBase):
                         try:
                             if str(episode['index']) not in to_dict:
                                 to_dict[str(episode['index'])] = episode
-                        except:
+                        except Exception:
                             pass
                     season['episodes'] = to_dict
 
@@ -123,7 +119,7 @@ class ModuleYamlShow(ModuleYamlBase):
                 try: 
                     metadata.originally_available_at = Datetime.ParseDate(self.get(data, 'originally_available_at', '')).date()
                 except Exception as e: 
-                    Log(str(e))
+                    Log.Error(str(e))
             else:
                 self.set_data(metadata, data, 'title', is_primary)
                 self.set_data(metadata, data, 'original_title', is_primary)

@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-import os, unicodedata, traceback, io, time, random
+import time
 from .module_yaml_base import ModuleYamlBase
-import yaml
 from collections import defaultdict
+
+VARIOUS_ARTISTS_POSTER = 'https://music.plex.tv/pixogs/various_artists_poster.jpg'
+
 
 class ModuleYamlArtist(ModuleYamlBase):
     module_name = 'yaml_artist'
@@ -38,8 +40,7 @@ class ModuleYamlArtist(ModuleYamlBase):
             results.Append(meta) 
             return True
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+            Log.Exception(str(exception))
         return False
 
 
@@ -51,7 +52,7 @@ class ModuleYamlArtist(ModuleYamlBase):
                 return False
             data = self.yaml_load(filepath)
             try: Log(self.d(data))
-            except: pass
+            except Exception: pass
             self.set_data(metadata, data, 'title', is_primary)
             Log(metadata.title)
             self.set_data(metadata, data, 'title_sort', is_primary)
@@ -69,8 +70,7 @@ class ModuleYamlArtist(ModuleYamlBase):
             self.set_data_extras(metadata, data, 'extras', is_primary)
             
         except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+            Log.Exception(str(e))
 
         
 
@@ -113,8 +113,7 @@ class ModuleYamlAlbum(ModuleYamlBase):
             results.Append(meta) 
             return True
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+            Log.Exception(str(exception))
         return False
 
 
@@ -131,7 +130,9 @@ class ModuleYamlAlbum(ModuleYamlBase):
                 if code.startswith('YD'): #더미
                     metadata.title = media.title
                     #metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-                    metadata.posters[VARIOUS_ARTISTS_POSTER] = Proxy.Media(HTTP.Request(VARIOUS_ARTISTS_POSTER))
+                    valid_names = set()
+                    self.set_http_data(VARIOUS_ARTISTS_POSTER, metadata.posters, valid_names)
+                    metadata.posters.validate_keys(valid_names)
 
                     valid_track_keys = []
                     for index, track_media in enumerate(media.children):
@@ -144,7 +145,7 @@ class ModuleYamlAlbum(ModuleYamlBase):
                 return
             data = self.yaml_load(filepath)
             #try: Log(self.d(data))
-            #except: pass
+            #except Exception: pass
             self.set_data(metadata, data, 'title', is_primary)
             self.set_data(metadata, data, 'title_sort', is_primary)
             self.set_data(metadata, data, 'originally_available_at', is_primary)
@@ -185,7 +186,7 @@ class ModuleYamlAlbum(ModuleYamlBase):
                 try:
                     # 트랙 번호에 맞게 순서대로 있어야 함. 
                     track_data = data['tracks'][str(disc_index)][str(track_media.index)]
-                except:
+                except Exception:
                     track_data = None
                     Log("NOT EXIST TRACK INFO: disc_index:%s track_index:%s", disc_index, track_media.index)
                 if track_data == None:
@@ -220,14 +221,12 @@ class ModuleYamlAlbum(ModuleYamlBase):
                             metadata.tracks[track_key].lyrics[url] = Proxy.Remote(url, format=lyric_data['format'], sort_order=lyric_index+1)
                             valid_keys[track_key].append(url)
                 except Exception as e: 
-                    Log('Exception:%s', e)
-                    Log(traceback.format_exc())
+                    Log.Exception(str(e))
                             
             metadata.tracks.validate_keys(valid_track_keys)
             for key in metadata.tracks:
                 metadata.tracks[key].lyrics.validate_keys(valid_keys[key])
             return
         except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+            Log.Exception(str(e))
         return False

@@ -15,7 +15,7 @@ class ModuleMovie(AgentBase):
                 results.Append(meta)
                 #return
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
         try:
             if manual and media.name is not None and (media.name.startswith('MD') or media.name.startswith('MT') or media.name.startswith('MN')):
@@ -67,7 +67,7 @@ class ModuleMovie(AgentBase):
             # info_json에 다른 코드가 있으면 삭제
             #Log(json.dumps(search_data, indent=4))
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
     #rating_image_identifiers = {'Certified Fresh' : 'rottentomatoes://image.rating.certified', 'Fresh' : 'rottentomatoes://image.rating.ripe', 'Ripe' : 'rottentomatoes://image.rating.ripe', 'Rotten' : 'rottentomatoes://image.rating.rotten', None : ''}
     #audience_rating_image_identifiers = {'Upright' : 'rottentomatoes://image.rating.upright', 'Spilled' : 'rottentomatoes://image.rating.spilled', None : ''}
@@ -169,35 +169,27 @@ class ModuleMovie(AgentBase):
                 actor.name = item
 
             # art
-            ProxyClass = Proxy.Media
             valid_names = []
             poster_index = art_index = banner_index = 0
             art_list = []
             for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
-                valid_names.append(item['value'])
+                image_url = item.get('thumb') or item.get('value')
+                if not image_url or image_url in valid_names:
+                    continue
                 if item['aspect'] == 'poster' and poster_index < 3:
-                    if item['thumb'] == '':
-                        metadata.posters[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=poster_index+1)
-                    else:
-                        metadata.posters[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=poster_index+1)
-                    poster_index = poster_index + 1
+                    if self.set_http_data(image_url, metadata.posters, valid_names, poster_index + 1):
+                        poster_index = poster_index + 1
                 elif item['aspect'] == 'landscape' and art_index < 3:
-                    art_list.append(item['value'])
-                    if item['thumb'] == '':
-                        metadata.art[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=art_index+1)
-                    else:
-                        metadata.art[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=art_index+1)
-                    art_index = art_index + 1
-                #elif item['aspect'] == 'banner' and banner_index < 0:
-                #    if item['thumb'] == '':
-                #        metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['value']).content, sort_order=banner_index+1)
-                #    else:
-                #        metadata.banners[item['value']] = ProxyClass(HTTP.Request(item['thumb']).content, sort_order=banner_index+1)
-                #    banner_index = banner_index + 1
+                    art_list.append(image_url)
+                    if self.set_http_data(image_url, metadata.art, valid_names, art_index + 1):
+                        art_index = art_index + 1
+                elif item['aspect'] == 'banner' and banner_index < 3:
+                    if self.set_http_data(image_url, metadata.banners, valid_names, banner_index + 1):
+                        banner_index = banner_index + 1
 
-            #metadata.posters.validate_keys(valid_names)
-            #metadata.art.validate_keys(valid_names)
-            #metadata.banners.validate_keys(valid_names)
+            metadata.posters.validate_keys(valid_names)
+            metadata.art.validate_keys(valid_names)
+            metadata.banners.validate_keys(valid_names)
 
             metadata.reviews.clear()
             for item in meta_info['review']:
@@ -250,6 +242,6 @@ class ModuleMovie(AgentBase):
                     metadata.collections.add((item))
             return
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 

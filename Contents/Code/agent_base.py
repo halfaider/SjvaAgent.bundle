@@ -71,7 +71,7 @@ class AgentBase(object):
             try:
                 return original_function(*args, **kwargs)
             except Exception as e:
-                Log.Exception(repr(e))
+                Log.Exception(str(e))
         return wrapper_function
 
 
@@ -99,7 +99,7 @@ class AgentBase(object):
             Log(url)
             return AgentBase.my_JSON_ObjectFromURL(url)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def send_info(self, module_name, code, title=None):
@@ -125,7 +125,7 @@ class AgentBase(object):
             Log(url)
             return AgentBase.my_JSON_ObjectFromURL(url)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def send_episode_info(self, module_name, code):
@@ -140,7 +140,7 @@ class AgentBase(object):
             Log(url)
             return AgentBase.my_JSON_ObjectFromURL(url)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def change_html(self, text):
@@ -164,7 +164,7 @@ class AgentBase(object):
 
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return ret
 
 
@@ -181,7 +181,7 @@ class AgentBase(object):
                     Log("GET_KEY: %s", item)
                     return AgentBase.key_map[item['agent']]
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     @staticmethod
@@ -192,7 +192,7 @@ class AgentBase(object):
             Log('my_JSON_ObjectFromURL retry : %s, url : %s', retry, url)
             return JSON.ObjectFromURL(url, timeout=timeout)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
             if retry > 0:
                 time.sleep(1)
                 Log('RETRY : %s', retry)
@@ -208,7 +208,7 @@ class AgentBase(object):
             ret = os.path.splitext(os.path.basename(filename))[0]
             return ret
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
     def get_token(self):
         # 'Critical', 'Debug', 'Error', 'Exception', 'Info', 'Stack', 'Warn'
@@ -250,7 +250,7 @@ class AgentBase(object):
                 else:
                     Log.Warn('Preferences.xml 탐색 실패')
             except Exception as e:
-                Log.Warn('Preferences.xml 탐색 중 오류 발생: %s', repr(e))
+                Log.Warn('Preferences.xml 탐색 중 오류 발생: %s', str(e))
             Log.Error('토큰을 가져오지 못 했습니다.')
         except Exception:
             Log.Exception('토큰 확인 중 오류가 발생했습니다.')
@@ -335,7 +335,7 @@ class AgentBase(object):
             Log('info.json 위치 : %s' % ret)
             return ret
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def save_info(self, media, info):
@@ -353,7 +353,7 @@ class AgentBase(object):
                 outfile.write(data)
             return True
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return False
 
 
@@ -365,7 +365,7 @@ class AgentBase(object):
                 return
             return self.read_json(filepath)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def read_json(self, filepath):
@@ -398,7 +398,7 @@ class AgentBase(object):
                 outfile.write(data)
             return True
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return False
 
 
@@ -416,9 +416,9 @@ class AgentBase(object):
                 #os.system('rm %s' % ret)
                 # 2021-11-27 by lapis https://sjva.me/bbs/board.php?bo_table=suggestions&wr_id=1978
                 os.system('rm "%s"' % ret)
-            except:
+            except Exception:
                 pass
-            #Log.Exception(repr(e))
+            #Log.Exception(str(e))
 
 
     def is_include_time_info(self, media):
@@ -432,7 +432,7 @@ class AgentBase(object):
             section_id_list = Prefs['include_time_info'].split(',')
             return section_id in section_id_list
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return False
 
     def is_read_json(self, media):
@@ -446,7 +446,7 @@ class AgentBase(object):
             section_id_list = Prefs['read_json'].split(',')
             return section_id in section_id_list
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return False
 
     def is_write_json(self, media):
@@ -460,7 +460,7 @@ class AgentBase(object):
             section_id_list = Prefs['write_json'].split(',')
             return section_id in section_id_list
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return False
 
     def is_show_extra(self, media):
@@ -474,7 +474,7 @@ class AgentBase(object):
             section_id_list = Prefs['show_extra_enabled'].split(',')
             return section_id in section_id_list
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return False
 
     def is_collection_append(self, media):
@@ -488,7 +488,7 @@ class AgentBase(object):
             section_id = str(data['MediaContainer']['librarySectionID'])
             return not (section_id in section_id_list)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return True
 
 
@@ -577,7 +577,7 @@ class AgentBase(object):
             elif is_primary:
                 setattr(meta, field, None)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def set_data_list(self, meta, data, field, is_primary):
@@ -592,7 +592,7 @@ class AgentBase(object):
                 meta.clear()
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
     def set_data_person(self, meta, data, field, is_primary):
         try:
@@ -609,27 +609,27 @@ class AgentBase(object):
                 meta.clear()
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
     def set_data_media(self, meta, data, field, is_primary):
         try:
             meta = getattr(meta, field)
+            if is_primary:
+                valid_names = set()
+            else:
+                valid_names = set(meta.keys())
             value = self.get_media_list(data, field)
             if len(value) > 0:
-                valid_names = []
-                for idx, media in enumerate(value):
-                    valid_names.append(media['url'])
-                    if 'thumb' in media:
-                        meta[media['url']] = Proxy.Media(HTTP.Request(media['thumb']).content, sort_order=idx+1)
-                    else:
-                        meta[media['url']] = Proxy.Media(HTTP.Request(media['url']).content, sort_order=idx+1)
-                meta.validate_keys(valid_names)
-            elif is_primary:
-                meta.validate_keys([])
-            Log(meta)
+                for media in value:
+                    image_url = media.get('thumb') or media.get('url')
+                    if not image_url or image_url in valid_names:
+                        continue
+                    self.set_http_data(image_url, meta, valid_names, len(valid_names) + 1)
+            meta.validate_keys(valid_names)
+            #Log(meta)
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
     def set_data_reviews(self, meta, data, field, is_primary):
         try:
@@ -648,7 +648,7 @@ class AgentBase(object):
                 meta.clear()
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
     def set_data_extras(self, meta, data, field, is_primary):
         try:
@@ -673,7 +673,7 @@ class AgentBase(object):
                 #meta.clear()
                 pass
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def yaml_load(self, filepath):
@@ -705,7 +705,24 @@ class AgentBase(object):
                 Log('get_code_from_folderpath: %s', code)
                 return code
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
+
+
+    def set_http_data(self, image_url, container, valid_names, sort_order=1):
+        try:
+            image_data = HTTP.Request(image_url).content
+        except Exception as e:
+            Log.Error(str(e))
+            image_data = None
+        if not image_data or len(image_data) < 16:
+            Log.Warn("유효하지 않은 데이터: %s", image_url)
+            return False
+        container[image_url] = Proxy.Media(image_data, sort_order=sort_order)
+        if isinstance(valid_names, list):
+            valid_names.append(image_url)
+        elif isinstance(valid_names, set):
+            valid_names.add(image_url)
+        return True
 
 
 

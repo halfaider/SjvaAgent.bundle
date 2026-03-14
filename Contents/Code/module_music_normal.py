@@ -60,19 +60,16 @@ class ModuleMusicNormalArtist(AgentBase):
                 results.Append(meta)
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
     def update(self, metadata, media, lang):
         code = metadata.id
-        if code.startswith('SD'):
-            metadata.title = '[Various Artists]'
+        if code.startswith('SD') or code.startswith('SE'):
+            metadata.title = '[Various Artists]' if code.startswith('SD') else urllib.unquote(code[2:])
             metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-            metadata.posters[VARIOUS_ARTISTS_POSTER] = Proxy.Media(HTTP.Request(VARIOUS_ARTISTS_POSTER))
-            return
-        if code.startswith('SE'):
-            metadata.title = urllib.unquote(code[2:])
-            metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-            metadata.posters[VARIOUS_ARTISTS_POSTER] = Proxy.Media(HTTP.Request(VARIOUS_ARTISTS_POSTER))
+            valid_names = set()
+            self.set_http_data(VARIOUS_ARTISTS_POSTER, metadata.posters, valid_names)
+            metadata.posters.validate_keys(valid_names)
             return
         data = None
         if self.is_read_json(media):
@@ -92,11 +89,19 @@ class ModuleMusicNormalArtist(AgentBase):
         metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
         metadata.summary = '%s\n%s' % (data['desc'], data['info_desc'])
 
+        valid_names = set()
+        idx = 1
         for poster in data['poster']:
-            metadata.posters[poster] = Proxy.Media(HTTP.Request(poster))
+            if self.set_http_data(poster, metadata.posters, valid_names, idx):
+                idx = idx + 1
+        metadata.posters.validate_keys(valid_names)
 
+        valid_names = set()
+        idx = 1
         for art in data['art']:
-            metadata.art[art] = Proxy.Media(HTTP.Request(art))
+            if self.set_http_data(art, metadata.art, valid_names, idx):
+                idx = idx + 1
+        metadata.art.validate_keys(valid_names)
         metadata.genres = data['genres']
         metadata.countries = data['countries']
         self.set_data_extras(metadata, data, 'extras', True)
@@ -201,7 +206,7 @@ class ModuleMusicNormalAlbum(AgentBase):
             tmp = unicode(data['title'])
             metadata.title_sort = unicodedata.normalize('NFKD', tmp)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
             new_string = ''.join(char for char in data['title'] if char.isalnum() or char == ' ')
             metadata.title_sort = unicodedata.normalize('NFKD', new_string)
             # 특수문자 때문에
@@ -216,7 +221,10 @@ class ModuleMusicNormalAlbum(AgentBase):
 
         metadata.summary = '%s\n%s' % (data['desc'], data['info_desc'])
 
-        metadata.posters[data['image']] = Proxy.Media(HTTP.Request(data['image']))
+        valid_names = set()
+        self.set_http_data(data['image'], metadata.posters, valid_names)
+        metadata.posters.validate_keys(valid_names)
+
         metadata.genres = [data['album_type']] + data['genres']
         try: metadata.rating = float(data['rating']) *2
         except Exception: pass
@@ -321,7 +329,7 @@ class ModuleMusicNormalAlbum(AgentBase):
                         )
                     """
             except Exception as e:
-                Log.Exception(repr(e))
+                Log.Exception(str(e))
                 #metadata.tracks[track_key].lyrics.validate_keys(valid_keys[track_key])
 
         metadata.tracks.validate_keys(valid_track_keys)

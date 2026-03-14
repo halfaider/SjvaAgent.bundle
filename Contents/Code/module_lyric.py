@@ -29,7 +29,7 @@ class ModuleLyric(AgentBase):
                         Log(url)
                         valid_keys[track_key].append(url)
                 except Exception as e:
-                    Log.Exception(repr(e))
+                    Log.Exception(str(e))
                     #metadata.tracks[track_key].lyrics.validate_keys(valid_keys[track_key])
             Log(valid_keys)
             for key in metadata.tracks:
@@ -38,7 +38,7 @@ class ModuleLyric(AgentBase):
                 metadata.tracks[key].lyrics.validate_keys(valid_keys[key])
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     """
@@ -69,7 +69,7 @@ class ModuleLyric(AgentBase):
                                 metadata.tracks[track_key].lyrics[url] = Proxy.Remote(url, format = mode, sort_order=idx+1)
                                 valid_keys[track_key].append(url)
                         except Exception as e:
-                            Log.Exception(repr(e))
+                            Log.Exception(str(e))
                     #metadata.tracks[track_key].lyrics.validate_keys(valid_keys[track_key])
             Log(valid_keys)
             for key in metadata.tracks:
@@ -78,6 +78,6 @@ class ModuleLyric(AgentBase):
                 metadata.tracks[key].lyrics.validate_keys(valid_keys[key])
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
     """
 

@@ -17,7 +17,7 @@ class ModuleKtv(AgentBase):
             if match:
                 return match.group('date')
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
     def search(self, results, media, lang, manual):
@@ -31,7 +31,7 @@ class ModuleKtv(AgentBase):
                     results.Append(meta)
                     #return
             except Exception as e:
-                Log.Exception(repr(e))
+                Log.Exception(str(e))
 
             # 2021-12-13 닥터 슬럼프 리메이크 FT105262
             if manual and media.show is not None and media.show.startswith('FT'):
@@ -177,10 +177,10 @@ class ModuleKtv(AgentBase):
                 self.search(results, media, lang, manual)
 
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 
-    def update_info(self, metadata, metadata_season,  meta_info, image_urls):
+    def update_info(self, metadata, metadata_season, meta_info, image_urls, metadata_season_index):
         #metadata.original_title = metadata.title
         #metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
         metadata.studio = meta_info['studio']
@@ -217,7 +217,6 @@ class ModuleKtv(AgentBase):
 
         # poster
         ProxyClass = Proxy.Media
-        valid_names = set()
         season_valid_names = set()
         poster_templates = {
             'poster': [metadata.posters, metadata_season.posters, 0],
@@ -236,8 +235,8 @@ class ModuleKtv(AgentBase):
                 continue
             try:
                 image_data = HTTP.Request(image_url).content
-                if not image_data or len(image_data) < 64:
-                    Log.error("유효하지 않은 이미지 데이터: %s", image_url)
+                if not image_data or len(image_data) < 16:
+                    Log.Warn("유효하지 않은 이미지 데이터: %s", image_url)
                     continue
                 process[2] = process[2] + 1
                 content = ProxyClass(image_data, sort_order=process[2])
@@ -246,13 +245,12 @@ class ModuleKtv(AgentBase):
                 update()에서 validate_keys() 하기 위해
                 """
                 image_urls[aspect].add(image_url)
-                valid_names.add(image_url)
                 process[0][image_url] = content
                 if process[1] is not None:
                     process[1][image_url] = content
                     season_valid_names.add(image_url)
             except Exception as e:
-                Log.Exception(repr(e))
+                Log.Exception(str(e))
 
         # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
         """
@@ -261,19 +259,17 @@ class ModuleKtv(AgentBase):
         만약 기준 목록에 없으면 삭제
         그래서 각 시즌마다 validate_keys()를 하면 마지막 시즌에서 작업한 포스터만 남음
         """
-        #metadata.posters.validate_keys(valid_names)
-        #metadata.art.validate_keys(valid_names)
-        #metadata.banners.validate_keys(valid_names)
-        metadata_season.posters.validate_keys(season_valid_names)
-        metadata_season.art.validate_keys(season_valid_names)
+        metadata_season.posters.validate_keys(season_valid_names or ['dummy'])
+        metadata_season.art.validate_keys(season_valid_names  or ['dummy'])
 
         # 테마
         valid_names = []
         if 'themes' in meta_info['extra_info']:
             for tmp in meta_info['extra_info']['themes']:
-                if tmp not in metadata.themes:
-                    valid_names.append(tmp)
-                    metadata.themes[tmp] = Proxy.Media(HTTP.Request(tmp).content)
+                try:
+                    if tmp not in metadata.themes:
+                        self.set_http_data(tmp, metadata.themes, valid_names)
+                except Exception: pass
 
         # 테마2
 
@@ -292,88 +288,90 @@ class ModuleKtv(AgentBase):
         if tvdb_id and THEME_URL % tvdb_id not in metadata.themes:
             tmp = THEME_URL % tvdb_id
             try:
-                metadata.themes[tmp] = Proxy.Media(HTTP.Request(THEME_URL % tvdb_id))
-                valid_names.append(tmp)
+                self.set_http_data(tmp, metadata.themes, valid_names, len(valid_names) + 1)
             except Exception: pass
         metadata.themes.validate_keys(valid_names)
 
 
-    def update_episode(self, show_epi_info, episode, media, info_json, is_write_json, frequency=None):
-        try:
-            valid_names = set()
+    def update_episode(self, show_epi_info, episode, media, info_json, is_write_json, meta_code, frequency=None):
+        site_orders = ['daum', 'tving', 'wavve']
+        if isinstance(meta_code, str) and len(meta_code) > 1:
+            if meta_code[1] == "W":
+                site_orders.sort(key=lambda x: x != "wavve")
+            elif meta_code[1] == "V":
+                site_orders.sort(key=lambda x: x != "tving")
 
-            if 'daum' in show_epi_info:
-                #if 'tving_id' in meta_info['extra_info']:
-                #    param += ('|' + 'V' + meta_info['extra_info']['tving_id'])
-                episode_info = None
+        def get_daum_episode_info(code, info_json, is_write_json, module_name, send_episode_info_func):
+            if info_json and code in info_json:
+                daum_episode_info = info_json[code]
+            else:
+                daum_episode_info = send_episode_info_func(module_name, code)
+                if daum_episode_info and is_write_json:
+                    info_json[code] = daum_episode_info
+            return daum_episode_info
 
-                if info_json is not None and show_epi_info['daum']['code'] in info_json:
-                    episode_info = info_json[show_epi_info['daum']['code']]
-                if episode_info is None:
-                    episode_info = self.send_episode_info(self.module_name, show_epi_info['daum']['code'])
-                    if episode_info is not None and is_write_json:
-                        info_json[show_epi_info['daum']['code']] = episode_info
-
-                episode.originally_available_at = Datetime.ParseDate(episode_info['premiered']).date()
-                episode.title = episode_info['title']
-                episode.summary = episode_info['plot']
-
-                # 2024.06.09 ott_match
-                ott_thumb = False
-                for site in ['tving', 'wavve']:
-                    if site in show_epi_info:
-                        thumb_index = 20
-                        valid_names.add(show_epi_info[site]['thumb'])
-                        try:
-                            episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Media(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
-                            ott_thumb = True
-                        except Exception: pass
-
-                if ott_thumb:
-                    return
-
-                thumb_index = 30
-                ott_mode = 'only_thumb'
-                for item in sorted(episode_info['thumb'], key=lambda k: k['score'], reverse=True):
-                    valid_names.add(item['value'])
-                    if item['thumb'] == '':
-                        try: episode.thumbs[item['value']] = Proxy.Media(HTTP.Request(item['value']).content, sort_order=thumb_index+1)
-                        except Exception: pass
-                    else:
-                        try : episode.thumbs[item['value']] = Proxy.Media(HTTP.Request(item['thumb']).content, sort_order=thumb_index+1)
-                        except Exception: pass
-                    thumb_index = thumb_index + 1
-                    ott_mode = 'stop'
-
-                # 부가영상
-                module_prefs = self.get_module_prefs(self.module_name)
-                for item in episode_info['extras']:
+        valid_thumb_names = set()
+        daum_episode_info = None
+        daum_code = (show_epi_info.get('daum') or {}).get('code') or ''
+        sort_order = 0
+        for site in site_orders:
+            try:
+                if site not in show_epi_info:
+                    continue
+                if site == 'daum':
+                    if not daum_episode_info:
+                        daum_episode_info = get_daum_episode_info(daum_code, info_json, is_write_json, self.module_name, self.send_episode_info)
+                        if not daum_episode_info:
+                            continue
+                    for thumb in sorted(daum_episode_info['thumb'], key=lambda k: k.get('score') or 0, reverse=True):
+                        image_url = thumb.get('thumb') or thumb.get('value')
+                        if not image_url or image_url in valid_thumb_names:
+                            continue
+                        sort_order = sort_order + 1
+                        self.set_http_data(image_url, episode.thumbs, valid_thumb_names, sort_order=sort_order)
+                else:
+                    image_url = show_epi_info[site].get('thumb') or show_epi_info[site].get('value')
+                    if not image_url or image_url in valid_thumb_names:
+                        continue
+                    sort_order = sort_order + 1
+                    self.set_http_data(image_url, episode.thumbs, valid_thumb_names, sort_order=sort_order)
+            except Exception:
+                Log.Exception('')
+            if valid_thumb_names:
+                break
+        if valid_thumb_names:
+            episode.thumbs.validate_keys(valid_thumb_names)
+        
+        for site in site_orders:
+            try:
+                if site not in show_epi_info:
+                    continue
+                if site == 'daum':
+                    if not daum_episode_info:
+                        daum_episode_info = get_daum_episode_info(daum_code, info_json, is_write_json, self.module_name, self.send_episode_info)
+                        if not daum_episode_info:
+                            continue
+                    epi_info = daum_episode_info
+                    episode.title = daum_episode_info['title']
+                else:
+                    epi_info = show_epi_info[site]
+                    episode.title = epi_info['title'] if epi_info.get('title') else epi_info['premiered']
+                    if frequency:
+                        episode.title = u'%s회 (%s)' % (frequency, episode.title)
+                episode.originally_available_at = Datetime.ParseDate(epi_info['premiered']).date()
+                episode.summary = epi_info['plot']
+            except Exception:
+                Log.Exception('')
+            if episode.originally_available_at and episode.title and episode.summary:
+                break
+        
+        if daum_episode_info:
+            for item in daum_episode_info.get('extras') or ():
+                try:
                     url = 'sjva://sjva.me/playvideo/%s|%s' % (item['mode'], item['content_url'])
                     episode.extras.add(self.extra_map[item['content_type'].lower()](url=url, title=self.change_html(item['title']), originally_available_at=Datetime.ParseDate(item['premiered']).date(), thumb=item['thumb']))
-            else:
-                ott_mode = 'full'
-
-            if ott_mode != 'stop':
-                for site in ['tving', 'wavve']:
-                    if site in show_epi_info:
-                        if ott_mode == 'full':
-                            episode.originally_available_at = Datetime.ParseDate(show_epi_info[site]['premiered']).date()
-                            #episode.title = show_epi_info[site]['premiered']
-                            episode.title = show_epi_info[site]['title'] if show_epi_info[site]['title'] != '' else show_epi_info[site]['premiered']
-                            if frequency is not None:
-                                episode.title = u'%s회 (%s)' % (frequency, episode.title)
-                            episode.summary = show_epi_info[site]['plot']
-
-                        if ott_mode in ['full', 'only_thumb']:
-                            thumb_index = 20
-                            valid_names.add(show_epi_info[site]['thumb'])
-                            try: episode.thumbs[show_epi_info[site]['thumb']] = Proxy.Media(HTTP.Request(show_epi_info[site]['thumb']).content, sort_order=thumb_index+1)
-                            except: pass
-
-            episode.thumbs.validate_keys(valid_names)
-
-        except Exception as e:
-            Log.Exception(repr(e))
+                except Exception:
+                    Log.Exception('')
 
 
 
@@ -500,7 +498,7 @@ class ModuleKtv(AgentBase):
                         metadata_season = metadata.seasons[media_season_index]
                         @task
                         def UpdateSeason(metadata=metadata, metadata_season=metadata_season, meta_info=meta_info, image_urls=image_urls):
-                            self.update_info(metadata, metadata_season, meta_info, image_urls)
+                            self.update_info(metadata, metadata_season, meta_info, image_urls, metadata_season_index=media_season_index)
 
                         # 포스터
                         # Get episode data.
@@ -508,12 +506,12 @@ class ModuleKtv(AgentBase):
                             episode = metadata.seasons[media_season_index].episodes[media_episode_index]
 
                             @task
-                            def UpdateEpisode(episode=episode, media_episode_index=media_episode_index, media=media, meta_info=meta_info, info_json=info_json, is_write_json=is_write_json):
+                            def UpdateEpisode(episode=episode, media_episode_index=media_episode_index, media=media, meta_info=meta_info, info_json=info_json, is_write_json=is_write_json, meta_code=metadata.id):
                                 frequency = False
                                 show_epi_info = None
                                 if media_episode_index in meta_info['extra_info']['episodes']:
                                     show_epi_info = meta_info['extra_info']['episodes'][media_episode_index]
-                                    self.update_episode(show_epi_info, episode, media, info_json, is_write_json)
+                                    self.update_episode(show_epi_info, episode, media, info_json, is_write_json, meta_code)
                                 else:
                                     #에피정보가 없다면
                                     match = Regex(r'\d{4}-\d{2}-\d{2}').search(media_episode_index)
@@ -521,7 +519,7 @@ class ModuleKtv(AgentBase):
                                         for key, value in meta_info['extra_info']['episodes'].items():
                                             if ('daum' in value and value['daum']['premiered'] == media_episode_index) or ('tving' in value and value['tving']['premiered'] == media_episode_index) or ('wavve' in value and value['wavve']['premiered'] == media_episode_index):
                                                 show_epi_info = value
-                                                self.update_episode(show_epi_info, episode, media, info_json, is_write_json, frequency=key)
+                                                self.update_episode(show_epi_info, episode, media, info_json, is_write_json, meta_code, frequency=key)
                                                 break
                                 if show_epi_info is None:
                                     return
@@ -554,7 +552,8 @@ class ModuleKtv(AgentBase):
                     bucket = metadata.banners
                 else:
                     continue
-                bucket.validate_keys(urls)
+                if urls:
+                    bucket.validate_keys(urls)
 
             # 시즌 title, summary
             if is_write_json and only_season_title_show == False:
@@ -580,7 +579,7 @@ class ModuleKtv(AgentBase):
                     if tmp != metadata.title:
                         Log(tmp)
                         match = Regex(r'(?P<season_num>\d{1,8})\s*(?P<season_title>.*?)$').search(tmp)
-                        Log('MATCH: %s' % repr(match.groups()))
+                        Log('MATCH: %s' % str(match.groups()))
                         if match and (tmp.startswith(u'시즌 ') or tmp.startswith(u'Season ')):
                             Log('FORCE season_num : %s', match.group('season_num'))
                             Log('FORCE season_title : %s', match.group('season_title'))
@@ -604,8 +603,8 @@ class ModuleKtv(AgentBase):
                     request = PutRequest(url)
                     response = urllib2.urlopen(request)
                 except Exception as e:
-                    Log.Exception(repr(e))
+                    Log.Exception(str(e))
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
 
 

@@ -42,7 +42,7 @@ def AddExtra(extras, extra_type, extra_title, extra_path):
       extras_list.append(extra_path)
 
   except Exception as e:
-    Log.error('AddExtra exception: %s', repr(e))
+    Log.error('AddExtra exception: %s', str(e))
 
 
 def FindExtras(media_title, metadata, paths, basename=None):

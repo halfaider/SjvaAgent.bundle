@@ -94,7 +94,7 @@ def convert_webp(webp_data):
         else:
             Log.Error("%s 오류: %s", mode, err.decode('utf-8', 'ignore') if isinstance(err, str) else err)
     except Exception as e:
-        Log.Exception("%s 실패: %s", mode, repr(e))
+        Log.Exception("%s 실패: %s", mode, str(e))
     finally:
         if timer:
             timer.cancel()
@@ -141,7 +141,7 @@ def proxy_wrapper(func):
                 args = list(args)
                 args[0] = convert_webp(args[0])
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         return func(*args, **kwds)
     return wrapped
 
@@ -173,10 +173,10 @@ def storage_save_wrapper(func):
                 Log.Debug("WEBP 데이터 발견: %s", shorten_filename)
                 args = list(args)
                 args[2] = convert_webp(data)
-            elif not data:
-                Log.Error("None 데이터 발견: %s", shorten_filename)
+            elif not data or len(data) < 16:
+                Log.Error("의심되는 데이터: %s", shorten_filename)
         except Exception as e:
-            Log.Exception(repr(e))
+            Log.Exception(str(e))
         result = func(*args, **kwds)
         if shorten_filename:
             Log.Debug('저장: %s (%d)', shorten_filename, len(data) if data else 0)

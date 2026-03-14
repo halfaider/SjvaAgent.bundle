@@ -1,12 +1,7 @@
 # -*- coding: utf-8 -*-
-import json
 import os
 import re
-import time
-import traceback
 import unicodedata
-import urllib
-from io import open
 
 from .agent_base import AgentBase
 
@@ -116,8 +111,7 @@ class ModuleYamlBase(AgentBase):
                     return yaml_filepath
                 
         except Exception as e: 
-            Log('Exception:%s', e)
-            Log(traceback.format_exc())
+            Log.Exception(str(e))
 
     
     def get(self, data, field, default):
@@ -196,8 +190,7 @@ class ModuleYamlBase(AgentBase):
             elif is_primary:
                 setattr(meta, field, None)
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())    
+            Log.Exception(str(exception))
 
 
     def set_data_list(self, meta, data, field, is_primary):
@@ -212,8 +205,7 @@ class ModuleYamlBase(AgentBase):
                 meta.clear()
 
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())
+            Log.Exception(str(exception))
 
     def set_data_person(self, meta, data, field, is_primary):
         try:
@@ -238,42 +230,35 @@ class ModuleYamlBase(AgentBase):
                 meta.clear()
 
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())
+            Log.Exception(str(exception))
 
     def set_data_media(self, meta, data, field, is_primary):
         try:
             meta = getattr(meta, field)
+            valid_names = set()
             value = self.get_media_list(data, field)
             if len(value) > 0:
-                valid_names = []
-                for idx, media in enumerate(value):
-                    if 'thumb' in media:
-                        tmp = media['thumb']
-                        valid_names.append(media['thumb'])
-                    else:
-                        tmp = media['url']
-                        valid_names.append(media['url'])
+                for media in value:
+                    image_url = media.get('thumb') or media.get('url')
+                    if not image_url or image_url in valid_names:
+                        continue
                     try:
-                        if tmp != None and tmp.startswith('http') == False:
+                        if image_url and image_url.startswith('http') == False:
                             ddns = Prefs['server'].rstrip('/')
-                            tmp = tmp.lstrip('/')
-                            tmp = ddns + '/' + tmp
-                        elif tmp.startswith('https://cdn.discordapp.com/attachments'):
+                            image_url = image_url.lstrip('/')
+                            image_url = ddns + '/' + image_url
+                        elif image_url.startswith('https://cdn.discordapp.com/attachments'):
                             ddns = Prefs['server'].rstrip('/')
-                            tmp = tmp.replace('https://cdn.discordapp.com', ddns)
-                        meta[tmp] = Proxy.Media(HTTP.Request(tmp).content, sort_order=idx+1)
+                            image_url = image_url.replace('https://cdn.discordapp.com', ddns)
+                        self.set_http_data(image_url, meta, valid_names, len(valid_names) + 1)
                     except Exception:
                         Log.Exception('')
-                if is_primary:
-                    meta.validate_keys(valid_names)
-            elif is_primary:
-                meta.validate_keys([])
+            if is_primary:
+                meta.validate_keys(valid_names)
             #Log(meta)
 
-        except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())
+        except Exception as e:
+            Log.Exception(str(e))
 
     def set_data_reviews(self, meta, data, field, is_primary):
         try:
@@ -292,8 +277,7 @@ class ModuleYamlBase(AgentBase):
                 meta.clear()
           
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())
+            Log.Exception(str(exception))
 
     def set_data_extras(self, meta, data, field, is_primary):
         try:
@@ -319,6 +303,5 @@ class ModuleYamlBase(AgentBase):
                 #meta.clear()
                 pass
         except Exception as exception: 
-            Log('Exception:%s', exception)
-            Log(traceback.format_exc())
+            Log.Exception(str(exception))
 
