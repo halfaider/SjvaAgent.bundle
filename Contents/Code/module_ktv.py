@@ -259,8 +259,8 @@ class ModuleKtv(AgentBase):
         만약 기준 목록에 없으면 삭제
         그래서 각 시즌마다 validate_keys()를 하면 마지막 시즌에서 작업한 포스터만 남음
         """
-        metadata_season.posters.validate_keys(season_valid_names or ['dummy'])
-        metadata_season.art.validate_keys(season_valid_names  or ['dummy'])
+        metadata_season.posters.validate_keys(season_valid_names)
+        metadata_season.art.validate_keys(season_valid_names)
 
         # 테마
         valid_names = []
