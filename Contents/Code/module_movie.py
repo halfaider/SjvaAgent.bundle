@@ -22,9 +22,9 @@ class ModuleMovie(AgentBase):
                 code = media.name
                 if self.is_include_time_info(media):
                     code = code + '|%s' % int(time.time())
-                meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
+                meta = MetadataSearchResult(id=code, name=code, year=1900, score=150, thumb="", lang=lang)
                 results.Append(meta)
-                return
+                #return
 
             if self.is_read_json(media):
                 if manual:
@@ -38,7 +38,7 @@ class ModuleMovie(AgentBase):
                         #code = code + ('^1' if manual else '^0')
                         meta = MetadataSearchResult(id=code, name=info_json['title'], year=info_json['year'], score=100, thumb="", lang=lang)
                         results.Append(meta)
-                        return
+                        #return
 
             movie_year = media.year
             movie_name = unicodedata.normalize('NFKC', unicode(media.name)).strip()

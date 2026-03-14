@@ -36,9 +36,9 @@ class ModuleKtv(AgentBase):
             # 2021-12-13 닥터 슬럼프 리메이크 FT105262
             if manual and media.show is not None and media.show.startswith('FT'):
                 code = media.show
-                meta = MetadataSearchResult(id=code, name=code, year='', score=100, thumb="", lang=lang)
+                meta = MetadataSearchResult(id=code, name=code, year='', score=150, thumb="", lang=lang)
                 results.Append(meta)
-                return
+                #return
 
             if manual and media.show is not None and media.show.startswith('K'):
                 # 2022-11-18 KBS 같은 경우
@@ -47,7 +47,7 @@ class ModuleKtv(AgentBase):
                     if code != 'KTV':
                         meta = MetadataSearchResult(id=code, name=title, year='', score=100, thumb="", lang=lang)
                         results.Append(meta)
-                        return
+                        #return
                 except Exception:
                     pass
 

@@ -24,9 +24,9 @@ class ModuleFtv(AgentBase):
                     return False
                 elif media.show.startswith('FT'):
                     code = media.show
-                    meta = MetadataSearchResult(id=code, name=code, year='', score=100, thumb="", lang=lang)
+                    meta = MetadataSearchResult(id=code, name=code, year='', score=150, thumb="", lang=lang)
                     results.Append(meta)
-                    return
+                    #return
 
             if self.is_read_json(media):
                 if manual:
@@ -39,7 +39,7 @@ class ModuleFtv(AgentBase):
                             code = info_json['show']['code']
                             meta = MetadataSearchResult(id=code, name=info_json['show']['title'], year=info_json['show']['year'], score=100, thumb="", lang=lang)
                             results.Append(meta)
-                            return
+                            #return
 
 
             media.show = unicodedata.normalize('NFC', unicode(media.show)).strip()
