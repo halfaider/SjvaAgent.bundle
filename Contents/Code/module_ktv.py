@@ -180,27 +180,39 @@ class ModuleKtv(AgentBase):
             Log.Exception(str(e))
 
 
-    def update_info(self, metadata, metadata_season, meta_info, image_urls, metadata_season_index):
+    def update_info(self, metadata, remote_metadata, image_urls, media_season_index):
+        metadata_season = metadata.seasons[media_season_index]
+        try:
+            season_index = int(media_season_index)
+        except Exception:
+            season_index = 1
+        # 네 자리 이상은 1 시즌 취급
+        if season_index > 999:
+            season_index = 1
+        # 세 자리 이상은 재생 버전별 시즌
+        elif season_index > 99:
+            season_index = season_index % 100
+        Log.Debug("업데이트: %s - 시즌 %d (%s)", metadata.title, season_index, media_season_index)
         #metadata.original_title = metadata.title
         #metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-        metadata.studio = meta_info['studio']
-        try: metadata.originally_available_at = Datetime.ParseDate(meta_info['premiered']).date()
+        metadata.studio = remote_metadata['studio']
+        try: metadata.originally_available_at = Datetime.ParseDate(remote_metadata['premiered']).date()
         except Exception: pass
-        metadata.content_rating = meta_info['mpaa']
-        metadata.summary = meta_info['plot']
+        metadata.content_rating = remote_metadata['mpaa']
+        metadata.summary = remote_metadata['plot']
         metadata_season.summary = metadata.summary
         metadata.genres.clear()
-        for tmp in meta_info['genre']:
+        for tmp in remote_metadata['genre']:
             metadata.genres.add(tmp)
 
         module_prefs = self.get_module_prefs(self.module_name)
         # 부가영상
-        for item in meta_info['extras']:
+        for item in remote_metadata['extras']:
             url = 'sjva://sjva.me/playvideo/%s|%s' % (item['mode'], item['content_url'])
             metadata.extras.add(self.extra_map[item['content_type'].lower()](url=url, title=self.change_html(item['title']), originally_available_at=Datetime.ParseDate(item['premiered']).date(), thumb=item['thumb']))
 
         # rating
-        for item in meta_info['ratings']:
+        for item in remote_metadata['ratings']:
             if item['name'] == 'tmdb':
                 metadata.rating = item['value']
                 metadata.audience_rating = 0.0
@@ -208,7 +220,7 @@ class ModuleKtv(AgentBase):
         # role
         #metadata.roles.clear()
         for item in ['actor', 'director', 'credits']:
-            for item in meta_info[item]:
+            for item in remote_metadata[item]:
                 actor = metadata.roles.new()
                 actor.role = item['role']
                 actor.name = item['name']
@@ -219,53 +231,57 @@ class ModuleKtv(AgentBase):
         ProxyClass = Proxy.Media
         season_valid_names = set()
         poster_templates = {
-            'poster': [metadata.posters, metadata_season.posters, 0],
-            'landscape': [metadata.art, metadata_season.art, 0],
-            'banner': [metadata.banners, None, 0]
+            'poster': (metadata.posters, metadata_season.posters),
+            'landscape': (metadata.art, metadata_season.art),
+            'banner': (metadata.banners, metadata_season.banners)
         }
-        for item in sorted(meta_info['thumb'], key=lambda k: k['score'], reverse=True):
+        for item in sorted(remote_metadata['thumb'], key=lambda k: k['score'], reverse=True):
             image_url = item.get('thumb') or item.get('value')
             aspect = item.get('aspect') or 'poster'
             process = poster_templates.get(aspect)
             """
             2026-03-12 halfaider
-            프로그램과 동일한 포스터를 시즌에 계속 넣어줄 필요가 있을까?
+            기존의 Info.xml에 있던 url은 metadata.posters 등에 등록되어 에이전트로 넘어옴
+            이 dict-like 목록을 갱신해서 데이터를 넣어줘야 함
+            url만 넣고 데이터를 넣어주지 않으면 None 으로 저장되는 듯
+            예를 들어 Info.xml에 A URL이 있었고 metadata.posters 에 등록되었는데
+            새로운 포스터 목록에 A URL이 없으면 다운로드하지 못 한채 None으로 파일이 저장됨
+            그래서 validate_keys()로 다운로드하지 못한 url은 삭제해 줘야 함
+            validate_keys()는 Preview는 적용 안되고 Media만 적용되는 것으로 보임
             """
-            if not process or not image_url or image_url in image_urls[aspect]:
+            if not process or not image_url:
+                continue
+            # 시즌 0, 1은 건너뛰기
+            if image_url in image_urls[aspect] and season_index < 2:
                 continue
             try:
                 image_data = HTTP.Request(image_url).content
                 if not image_data or len(image_data) < 16:
                     Log.Warn("유효하지 않은 이미지 데이터: %s", image_url)
                     continue
-                process[2] = process[2] + 1
-                content = ProxyClass(image_data, sort_order=process[2])
-                """
-                2026-03-12 halfaider
-                update()에서 validate_keys() 하기 위해
-                """
-                image_urls[aspect].add(image_url)
-                process[0][image_url] = content
-                if process[1] is not None:
-                    process[1][image_url] = content
+                # sort_order 때문에 검사
+                if image_url not in image_urls[aspect]:
+                    process[0][image_url] = ProxyClass(image_data, sort_order=len(image_urls[aspect]) + 1)
+                    image_urls[aspect].add(image_url)
+                # 시즌 번호가 2 이상인 경우 각 시즌에 포스터가 저장되도록
+                if season_index > 1 and image_url not in season_valid_names:
+                    process[1][image_url] = ProxyClass(image_data, sort_order=len(season_valid_names) + 1)
                     season_valid_names.add(image_url)
             except Exception as e:
                 Log.Exception(str(e))
-
-        # 이거 확인필요. 번들제거 영향. 시즌을 주석처리안하면 쇼에 최후것만 입력됨.
         """
         2026-03-11 halfaider
         validate_keys()는 보유중인 모든 키가 입력받은 기준 목록에 있는지 검사함
         만약 기준 목록에 없으면 삭제
-        그래서 각 시즌마다 validate_keys()를 하면 마지막 시즌에서 작업한 포스터만 남음
+        for 문 안에서 각 시즌마다 metadata.posters.validate_keys()를 하면 마지막 시즌에서 작업한 포스터만 남으니 주의
         """
         metadata_season.posters.validate_keys(season_valid_names)
         metadata_season.art.validate_keys(season_valid_names)
 
         # 테마
         valid_names = []
-        if 'themes' in meta_info['extra_info']:
-            for tmp in meta_info['extra_info']['themes']:
+        if 'themes' in remote_metadata['extra_info']:
+            for tmp in remote_metadata['extra_info']['themes']:
                 try:
                     if tmp not in metadata.themes:
                         self.set_http_data(tmp, metadata.themes, valid_names)
@@ -275,12 +291,12 @@ class ModuleKtv(AgentBase):
 
         # Get the TVDB id from the Movie Database Agent
         tvdb_id = None
-        if 'tmdb_id' in meta_info['extra_info']:
+        if 'tmdb_id' in remote_metadata['extra_info']:
             tvdb_id = Core.messaging.call_external_function(
                 'com.plexapp.agents.themoviedb',
                 'MessageKit:GetTvdbId',
                 kwargs = dict(
-                    tmdb_id = meta_info['extra_info']['tmdb_id']
+                    tmdb_id = remote_metadata['extra_info']['tmdb_id']
                 )
             )
         Log('TVDB_ID : %s', tvdb_id)
@@ -496,8 +512,8 @@ class ModuleKtv(AgentBase):
 
                         metadata_season = metadata.seasons[media_season_index]
                         @task
-                        def UpdateSeason(metadata=metadata, metadata_season=metadata_season, meta_info=meta_info, image_urls=image_urls):
-                            self.update_info(metadata, metadata_season, meta_info, image_urls, metadata_season_index=media_season_index)
+                        def UpdateSeason(metadata=metadata, meta_info=meta_info, image_urls=image_urls, media_season_index=media_season_index):
+                            self.update_info(metadata, meta_info, image_urls, media_season_index)
 
                         # 포스터
                         # Get episode data.
