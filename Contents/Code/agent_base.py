@@ -96,7 +96,7 @@ class AgentBase(object):
               apikey=Prefs['apikey'] if module_prefs['apikey'] == '' else module_prefs['apikey'],
               param=param,
             )
-            Log(url)
+            #Log(url)
             return AgentBase.my_JSON_ObjectFromURL(url)
         except Exception as e:
             Log.Exception(str(e))
@@ -122,7 +122,7 @@ class AgentBase(object):
             )
             if title is not None:
                 url += '&title=' + urllib.quote(title.encode('utf8'))
-            Log(url)
+            #Log(url)
             return AgentBase.my_JSON_ObjectFromURL(url)
         except Exception as e:
             Log.Exception(str(e))
@@ -137,7 +137,7 @@ class AgentBase(object):
               code=urllib.quote(code.encode('utf8')),
               apikey=Prefs['apikey'] if module_prefs['apikey'] == '' else module_prefs['apikey']
             )
-            Log(url)
+            #Log(url)
             return AgentBase.my_JSON_ObjectFromURL(url)
         except Exception as e:
             Log.Exception(str(e))
@@ -189,7 +189,7 @@ class AgentBase(object):
         try:
             if timeout is None:
                 timeout = int(Prefs['timeout'])
-            Log('my_JSON_ObjectFromURL retry : %s, url : %s', retry, url)
+            #Log('my_JSON_ObjectFromURL retry : %s, url : %s', retry, url)
             return JSON.ObjectFromURL(url, timeout=timeout)
         except Exception as e:
             Log.Exception(str(e))

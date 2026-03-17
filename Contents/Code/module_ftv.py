@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, urllib, re, unicodedata, urllib2
+import os, urllib, re, unicodedata, urllib2, json
 from .agent_base import AgentBase
 
 
@@ -68,6 +68,11 @@ class ModuleFtv(AgentBase):
     def update(self, metadata, media, lang):
         #self.base_update(metadata, media, lang)
         try:
+            seasons_to_update = json.loads(Prefs['seasons_to_update'])
+        except Exception:
+            seasons_to_update = {}
+        Log("[%s] seasons to update: %s", media.id, seasons_to_update)
+        try:
             meta_info = None
             info_json = None
             is_write_json = self.is_write_json(media)
@@ -92,6 +97,13 @@ class ModuleFtv(AgentBase):
                 #for media_season_index in media.seasons:
                 for media_season_index in index_list:
                     Log('media_season_index is %s', media_season_index)
+                    """
+                    2026-03-17 halfaider
+                    사용자 설정값에서 지정한 시즌만 업데이트
+                    """
+                    if media.id in seasons_to_update and int(media_season_index) not in (seasons_to_update.get(media.id) or ()):
+                        Log.Info("[%s] 업데이트 건너뛰기: %s", media.id, media_season_index)
+                        continue
                     #if media_season_index == '0':
                     #    continue
 

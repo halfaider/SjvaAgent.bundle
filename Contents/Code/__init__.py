@@ -179,6 +179,7 @@ def storage_save_wrapper(func):
             Log.Exception(str(e))
         result = func(*args, **kwds)
         if shorten_filename:
-            Log.Debug('저장: %s (%d)', shorten_filename, len(data) if data else 0)
+            #Log.Debug('저장: %s (%d)', shorten_filename, len(data) if data else 0)
+            pass
         return result
     return wrapped

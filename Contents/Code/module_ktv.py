@@ -2,6 +2,18 @@
 import os, json, urllib, unicodedata, urllib2
 from .agent_base import AgentBase, PutRequest
 
+Log = Log
+Regex = Regex
+MetadataSearchResult = MetadataSearchResult
+Datetime = Datetime
+Proxy = Proxy
+HTTP = HTTP
+Core = Core
+Prefs = Prefs
+parallelize = parallelize
+task = task
+JSON = JSON
+
 
 class ModuleKtv(AgentBase):
     module_name = 'ktv'
@@ -18,7 +30,6 @@ class ModuleKtv(AgentBase):
                 return match.group('date')
         except Exception as e:
             Log.Exception(str(e))
-
 
     def search(self, results, media, lang, manual):
         try:
@@ -85,15 +96,18 @@ class ModuleKtv(AgentBase):
             equal_max_score = 100
             if 'daum' in search_data:
                 data = search_data['daum']
-                flag_media_season = False
+                has_multiple_seasons = False
                 if len(media.seasons) > 1:
                     for media_season_index in media.seasons:
-                        if int(media_season_index) > 1:# and int(media_season_index) < 1900:
-                            flag_media_season = True
-                            break
+                        try:
+                            if int(media_season_index) > 1:# and int(media_season_index) < 1900:
+                                has_multiple_seasons = True
+                                break
+                        except Exception:
+                            pass
 
                 # 미디어도 시즌, 메타도 시즌
-                if flag_media_season and len(data['series']) > 1:
+                if has_multiple_seasons and len(data['series']) > 1:
                     # 마지막 시즌 ID
                     results.Append(MetadataSearchResult(
                         id=data['series'][-1]['code'],
@@ -179,36 +193,14 @@ class ModuleKtv(AgentBase):
         except Exception as e:
             Log.Exception(str(e))
 
-
     def update_info(self, metadata, remote_metadata, image_urls, media_season_index):
         metadata_season = metadata.seasons[media_season_index]
-        try:
-            season_index = int(media_season_index)
-        except Exception:
-            season_index = 1
-        # 다섯 자리 이상은 1 시즌 취급 (202501)
-        if season_index > 9999:
-            season_index = 1
-        # 네 자리 이상은 사용자 정의 시즌
-        elif season_index > 999:
-            season_index = season_index
-        # 세 자리 이상은 재생 버전별 시즌
-        elif season_index > 99:
-            season_index = season_index % 100
+        season_index = self.convert_season_index(media_season_index)
         Log.Debug("업데이트: %s - 시즌 %d (%s)", metadata.title, season_index, media_season_index)
-        #metadata.original_title = metadata.title
-        #metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-        metadata.studio = remote_metadata.get('studio') or ''
-        try: metadata.originally_available_at = Datetime.ParseDate(remote_metadata['premiered']).date()
-        except Exception: pass
-        metadata.content_rating = remote_metadata.get('mpaa') or ''
-        metadata.summary = remote_metadata.get('plot') or ''
-        metadata_season.summary = metadata.summary
-        metadata.genres.clear()
-        for tmp in remote_metadata.get('genres') or ():
-            metadata.genres.add(tmp)
+        metadata_season.summary = remote_metadata.get('plot') or ''
 
-        module_prefs = self.get_module_prefs(self.module_name)
+        # metadata 객체의 정보를 최신 시즌의 정보로 업데이트
+
         # 부가영상
         for item in remote_metadata.get('extras') or ():
             try:
@@ -325,8 +317,7 @@ class ModuleKtv(AgentBase):
                 except Exception: pass
         metadata.themes.validate_keys(valid_names)
 
-
-    def update_episode(self, show_epi_info, episode, media, info_json, is_write_json, meta_code, frequency=None):
+    def update_episode(self, show_epi_info, episode, info_json, is_write_json, meta_code, frequency=None):
         site_orders = ['daum', 'tving', 'wavve']
         if isinstance(meta_code, str) and len(meta_code) > 1:
             if meta_code[1] == "W":
@@ -383,9 +374,11 @@ class ModuleKtv(AgentBase):
                     episode.title = daum_episode_info['title']
                 else:
                     epi_info = show_epi_info[site]
-                    episode.title = epi_info['title'] if epi_info.get('title') else epi_info['premiered']
-                    if frequency:
-                        episode.title = u'%s회 (%s)' % (frequency, episode.title)
+                    # 다음 title 우선
+                    if not episode.title:
+                        episode.title = epi_info['title'] if epi_info.get('title') else epi_info['premiered']
+                        if frequency:
+                            episode.title = u'%s회 (%s)' % (frequency, episode.title)
                 episode.originally_available_at = Datetime.ParseDate(epi_info['premiered']).date()
                 episode.summary = epi_info['plot']
             except Exception:
@@ -402,92 +395,154 @@ class ModuleKtv(AgentBase):
                 except Exception:
                     Log.Exception('')
 
-
-
     def update(self, metadata, media, lang):
-        #self.base_update(metadata, media, lang)
-        try:
-            is_write_json = self.is_write_json(media)
-            module_prefs = self.get_module_prefs(self.module_name)
-            flag_ending = False
-            flag_media_season = False
-            if len(media.seasons) > 1:
-                for media_season_index in media.seasons:
-                    if int(media_season_index) > 1:# and int(media_season_index) < 1900:
-                        flag_media_season = True
+        # 시즌이 2개 이상이고 시즌 번호가 1, 0만 있는지 검사
+        has_multiple_seasons = False
+        if len(media.seasons) > 1:
+            for index_ in media.seasons:
+                try:
+                    if int(index_) > 1:
+                        has_multiple_seasons = True
                         break
+                except Exception:
+                    pass
+        
+        search_key = u'search|%s' % media.title
+        search_data = None
+        info_json = {}
+        is_write_json = self.is_write_json(media)
+        if self.is_read_json(media):
+            tmp = self.get_info_json(media)
+            # info.json에 지난 검색결과가 있으면 사용
+            if tmp and search_key in tmp:
+                search_data = tmp[search_key]
+                info_json = tmp
+        # info.json에 검색결과가 없으면 검색 후 저장
+        search_data = search_data or self.send_search(self.module_name, media.title, False)
+        if search_data or is_write_json:
+            info_json[search_key] = search_data
 
-            search_data = None
-            search_key = u'search|%s' % media.title
-            info_json = {}
-            if self.is_read_json(media):
-                tmp = self.get_info_json(media)
-                #Log(tmp)
-                if tmp is not None and search_key in tmp:
-                    search_data = tmp[search_key]
-                    info_json = tmp
+        module_prefs = self.get_module_prefs(self.module_name)
+        try:
+            seasons_to_update = json.loads(Prefs['seasons_to_update'])
+        except Exception:
+            seasons_to_update = {}
+        Log("[%s] seasons to update: %s", media.id, seasons_to_update)
 
-            if search_data is None:
-                search_data = self.send_search(self.module_name, media.title, False)
-                if search_data is not None and is_write_json:
-                    #self.append_info(media, search_key, search_data)
-                    info_json[search_key] = search_data
+        # 사용할 메타데이터 인포
+        search_code = metadata.id
+        search_title = media.title.replace(u'[종영]', '')
+        search_title = search_title.split('|')[0].strip()
+        main_meta_info = self.get_data_from_info_json(search_code, search_title, info_json, is_write_json)
+        Log.Debug("[%s] metadata code: %s", media.id, main_meta_info.get('code'))
+        Log.Debug("[%s] metadata title: %s", media.id, main_meta_info.get('title'))
+        Log.Debug("[%s] metadata summary: %s", media.id, main_meta_info.get('plot'))
+        Log.Debug("[%s] metadata season: %s", media.id, main_meta_info.get('season'))
 
-            index_list = [index for index in media.seasons]
-            index_list.sort()
-            try:
-                index_list = sorted(index_list, key=lambda x: int(x) if x.isdigit() else x)
-            except Exception:
-                index_list.sort()
-            Log('SEASON INDEX: %s', index_list)
-            #for media_season_index in media.seasons:
+        """
+        2026-03-17 halfaider
+        메타데이터 새로고침의 대상은 TV show 혹은 Episode
+        TV show:
+            metadata.id: KD51256 TV 쇼의 메타데이터 ID
+            metadata.guid: com.plexapp.agents.sjva_agent://KD51256?lang=ko
+            media.guid: com.plexapp.agents.sjva_agent://KD51256?lang=ko
+            media.id: TV쇼의 DB id
+            media.seasons: TV 쇼의 모든 즌 {'200801': <Framework.api.agentkit.MediaTree object at 0xf303eb065bd0>, ...}
+        에피소드:
+            metadata.id: KD51256 TV 쇼의 메타데이터 ID
+            metadata.guid: com.plexapp.agents.sjva_agent://KD51256/200801/172?lang=ko
+            media.guid: com.plexapp.agents.sjva_agent://KD51256?lang=ko
+            media.id: 에피소드의 DB id
+            media.seasons: 에피소드의 부모 시즌 {'200801': <Framework.api.agentkit.MediaTree object at 0xf303eb065bd0>}
+        """
+        guid_parts = self.parse_guid(metadata.guid)
+        if guid_parts.get('is_episode'):
+            Log.Debug("[%s] Update episode: %s", media.id, guid_parts.get('episode'))
+            Log.Debug("[%s] 에피소드만 메타데이터 새로고침하면 에피소드 전용 번들 폴더에 저장됨", media.id)
+            metadata_episode = metadata.seasons[guid_parts.get('season')].episodes[guid_parts.get('episode')]
+            media_episode = media.seasons[guid_parts.get('season')].episodes[guid_parts.get('episode')]
+            #self.reset_episode_metadata(metadata_episode)
+            #metadata_episode.title = "테스트"
+            return
+        
+        # 메타데이터 초기화
+        if media.title:
+            metadata.title = media.title.split('|')[0].strip()
+        else:
+            metadata.title = ''
+        if not has_multiple_seasons:
+            metadata.title = main_meta_info.get('title') or metadata.title
+        metadata.original_title = metadata.title
+        metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
+        metadata.studio = main_meta_info.get('studio') or ''
+        metadata.content_rating = main_meta_info.get('mpaa') or ''
+        metadata.summary = main_meta_info.get('plot') or ''
+        metadata.posters.validate_keys([])
+        metadata.art.validate_keys([])
+        metadata.banners.validate_keys([])
+        metadata.roles.clear()
+        metadata.genres.clear()
+        try: 
+            metadata.originally_available_at = Datetime.ParseDate(main_meta_info['premiered']).date()
+        except Exception: 
+            metadata.originally_available_at = ''
+        for tmp in main_meta_info.get('genre') or ():
+            metadata.genres.add(tmp)
 
+        series_data = (search_data.get('daum') or {}).get('series') or ()
+        
+        @parallelize
+        def UpdateSeasons():
+            # 포스터 초기화용 목록
             image_urls = {
                 'poster': set(),
                 'landscape': set(),
                 'banner': set()
             }
+            def get_sort_key(x):
+                try:
+                    return int(x)
+                except Exception:
+                    return x
+            index_list = sorted(media.seasons.keys(), key=get_sort_key)
+            Log.Debug('[%s] Season indexes: %s', media.id, index_list)
 
-            # 2021-11-05
-            metadata.roles.clear()
-            @parallelize
-            def UpdateSeasons():
-                for media_season_index in index_list:
+            for media_season_index in index_list:
+                try:
+                    """
+                    2026-03-17 halfaider
+                    사용자 설정값에서 지정한 시즌만 업데이트
+                    """
+                    if media.id in seasons_to_update and int(media_season_index) not in (seasons_to_update.get(media.id) or ()):
+                        Log.Info("[%s] 업데이트 건너뛰기: %s", media.id, media_season_index)
+                        continue
+
                     season_media = media.seasons[media_season_index]
                     try:
                         sample_season_path = season_media.all_parts()[0].file
-                        
                     except Exception:
                         sample_season_path = None
-                    Log("sample season path: %s", sample_season_path)
+                    Log.Debug("[%s] sample_season_path: %s", media.id, sample_season_path)
                     # 2022-04-05
-                    search_media_season_index = media_season_index
-                    if len(str(media_season_index)) > 2:
-                        search_media_season_index = str(media_season_index)[-2:]
-
+                    search_media_season_index = self.convert_season_index(media_season_index)
                     if search_media_season_index in ['0', '00']:
                         continue
-
-                    #Log(self.d(search_data['daum']['series']))
+                    
                     search_title = media.title.replace(u'[종영]', '')
                     search_title = search_title.split('|')[0].strip()
-                    Log('search_title2 : %s', search_title)
-                    #Log('search_code2 : %s', search_code)
-
                     # 신과함께3 단일 미디어파일이면 search_media_season_index 1이여서 시즌1이 매칭됨.
                     # 단일 미디어 파일에서는 사용하지 않도록함.
                     # 어짜피 여러 시즌버전을 넣는다면 신과함꼐3도 시즌3으로 바꾸어야함.
                     search_code = metadata.id
                     only_season_title_show = False
-                    series_data = (search_data.get('daum') or {}).get('series') or ()
-                    if flag_media_season and series_data:
+                    if has_multiple_seasons and series_data:
                         try: #사당보다 먼 의정부보다 가까운 3
-                            Log("search series size: %s", len(series_data))
+                            Log.Debug("[%s] search_series_size: %s", media.id, len(series_data))
                             search_title = series_data[int(search_media_season_index)-1]['title']
                             search_code = series_data[int(search_media_season_index)-1]['code']
                         except Exception:
                             only_season_title_show = True
-                    if flag_media_season and sample_season_path:
+                    if has_multiple_seasons and sample_season_path:
                         try:
                             """
                             2026-03-16 halfaider
@@ -496,110 +551,144 @@ class ModuleKtv(AgentBase):
                             match = Regex(r'\{daum-(?P<daum_id>\d+)\}').search(sample_season_path)
                             if match:
                                 daum_id = match.group('daum_id')
-                                Log("series daum id: %s", daum_id)
+                                Log.Debug("[%s] Search series Daum id: %s", media.id, daum_id)
                                 search_code = "KD" + daum_id
                                 only_season_title_show = False
                         except Exception:
                             Log.Exception('')
 
-                    Log('flag_media_season : %s', flag_media_season)
-                    Log('search_title : %s', search_title)
-                    Log('search_code : %s', search_code)
-                    Log('media_season_index : %s', media_season_index)
-                    Log('search_media_season_index: %s', search_media_season_index)
+                    Log.Debug('[%s] has_multiple_seasons: %s', media.id, has_multiple_seasons)
+                    Log.Debug('[%s] search_title: %s', media.id, search_title)
+                    Log.Debug('[%s] search_code: %s', media.id, search_code)
+                    Log.Debug('[%s] media_season_index: %s', media.id, media_season_index)
+                    Log.Debug('[%s] search_media_season_index: %s', media.id, search_media_season_index)
+                    Log.Debug('[%s] only_season_title_show: %s', media.id, only_season_title_show)
 
-
-                    Log('only_season_title_show : %s', only_season_title_show)
-                    #self.get_json_filepath(media)
-                    #self.get_json_filepath(media.seasons[media_season_index])
-
-                    if only_season_title_show == False:
-
+                    if not only_season_title_show:
                         meta_info = None
-                        if info_json is not None and search_code in info_json:
-                            # 방송중이라면 저장된 정보를 무시해야 새로운 에피를 갱신
-                            if info_json[search_code]['status'] == 2:
-                                meta_info = info_json[search_code]
-                        if meta_info is None:
-                            meta_info = self.send_info(self.module_name, search_code, title=search_title)
-                            if meta_info is not None and is_write_json:
-                                #self.append_info(media, search_code, meta_info)
-                                info_json[search_code] = meta_info
-                                #self.save_info(media, info_json)
-                        Log("SEARCH_CODE: %s", search_code)
-                        Log("TITLE: %s", meta_info['title'])
-                        Log("SUMMARY: %s", meta_info['plot'])
-                        Log("METAINFO_CODE: %s", meta_info['code'])
-                        Log("METAINFO_SEASON: %s", meta_info['season'])
-                        #Log(json.dumps(meta_info, indent=4))
-
-                        if flag_media_season:
-                            metadata.title = media.title.split('|')[0].strip()
+                        if search_code == main_meta_info.get('code'):
+                            meta_info = main_meta_info
                         else:
-                            metadata.title = meta_info['title']
+                            meta_info = self.get_data_from_info_json(search_code, search_title, info_json, is_write_json)
+                            
+                        Log.Debug("[%s] TITLE: %s", media.id, meta_info.get('title'))
+                        Log.Debug("[%s] SUMMARY: %s", media.id, meta_info.get('plot'))
+                        Log.Debug("[%s] METAINFO_CODE: %s", media.id, meta_info.get('code'))
+                        Log.Debug("[%s] METAINFO_SEASON: %s", media.id, meta_info.get('season'))
 
-
-                        metadata.original_title = metadata.title
-                        metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-
-                        if flag_media_season == False and meta_info['status'] == 2 and  module_prefs['end_noti_filepath'] != '':
-                            parts = media.seasons[media_season_index].all_parts()
-                            end_noti_filepath = module_prefs['end_noti_filepath'].split('|')
+                        if not has_multiple_seasons and meta_info.get('status') == 2 and module_prefs.get('end_noti_filepath'):
+                            end_noti_filepath = (module_prefs.get('end_noti_filepath') or '').split('|')
                             for tmp in end_noti_filepath:
-                                if parts[0].file.find(tmp) != -1:
+                                if tmp and (tmp in sample_season_path):
                                     metadata.title = u'[종영]%s' % metadata.title
                                     break
 
                         metadata_season = metadata.seasons[media_season_index]
+
                         @task
                         def UpdateSeason(metadata=metadata, meta_info=meta_info, image_urls=image_urls, media_season_index=media_season_index):
+                            # 각 시즌의 정보를 metadata 객체에 업데이트
                             self.update_info(metadata, meta_info, image_urls, media_season_index)
 
-                        # 포스터
-                        # Get episode data.
+                        # 에피소드 업데이트
+                        date_map = {}
+                        meta_info_episodes = (meta_info.get('extra_info') or {}).get('episodes') or {}
                         for media_episode_index in media.seasons[media_season_index].episodes:
                             episode = metadata.seasons[media_season_index].episodes[media_episode_index]
-
                             @task
-                            def UpdateEpisode(episode=episode, media_episode_index=media_episode_index, media=media, meta_info=meta_info, info_json=info_json, is_write_json=is_write_json, meta_code=meta_info.get('code') or metadata.id):
+                            def UpdateEpisode(episode=episode, media_episode_index=media_episode_index, media=media, meta_info_episodes=meta_info_episodes, info_json=info_json, is_write_json=is_write_json, meta_code=meta_info.get('code') or metadata.id, date_map=date_map):
+                                originally_available_at = episode.originally_available_at or ''
                                 # 에피소드 정보 초기화
-                                episode.title = None
-                                episode.summary = None
-                                episode.originally_available_at = None
-                                episode.directors.clear()
-                                episode.producers.clear()
-                                episode.writers.clear()
-                                episode.thumbs.validate_keys([])
-                                frequency = False
-                                show_epi_info = None
-                                if media_episode_index in meta_info['extra_info']['episodes']:
-                                    show_epi_info = meta_info['extra_info']['episodes'][media_episode_index]
-                                    self.update_episode(show_epi_info, episode, media, info_json, is_write_json, meta_code)
+                                self.reset_episode_metadata(episode)
+                                if media_episode_index in meta_info_episodes:
+                                    show_epi_info = meta_info_episodes[media_episode_index]
+                                    self.update_episode(show_epi_info, episode, info_json, is_write_json, meta_code)
                                 else:
-                                    #에피정보가 없다면
-                                    match = Regex(r'\d{4}-\d{2}-\d{2}').search(media_episode_index)
-                                    if match:
-                                        for key, value in meta_info['extra_info']['episodes'].items():
-                                            if ('daum' in value and value['daum']['premiered'] == media_episode_index) or ('tving' in value and value['tving']['premiered'] == media_episode_index) or ('wavve' in value and value['wavve']['premiered'] == media_episode_index):
-                                                show_epi_info = value
-                                                self.update_episode(show_epi_info, episode, media, info_json, is_write_json, meta_code, frequency=key)
-                                                break
-                                """
-                                if show_epi_info is None:
-                                    return
+                                    #에피정보가 없다면 날짜로 매칭
+                                    path_date = ""
+                                    try:
+                                        episode_media = media.seasons[media_season_index].episodes[media_episode_index]
+                                        episode_path = episode_media.all_parts()[0].file
+                                        match = Regex(r'\.(?P<date>\d{6})\.').search(episode_path)
+                                        if match:
+                                            six = match.group('date')
+                                            year = six[:2]
+                                            if int(year) > 50:
+                                                year = '19' + year
+                                            else:
+                                                year = '20' + year
+                                            path_date = year + '-' + six[2:4] + '-' + six[4:]
+                                    except Exception:
+                                        Log.Exception('')
+                                    date_texts = []
+                                    for date_text in (originally_available_at, media_episode_index, path_date):
+                                        if isinstance(date_text, str) and len(date_text) > 5:
+                                            date_texts.append(date_text)
+                                    Log.Debug("[%s] cadidates for date: %s", media.id, date_texts)
+                                    for text in date_texts:
+                                        match = Regex(r'(\d{4}-\d{2}-\d{2})').search(text)
+                                        if match:
+                                            media_premiered = match.group(1)
+                                            if not date_map:
+                                                for key, value in meta_info_episodes.items():
+                                                    for site in ('daum', 'tving', 'wavve'):
+                                                        site_data = value.get(site)
+                                                        if site_data:
+                                                            premiered = site_data.get('premiered')
+                                                            if isinstance(premiered, str) and premiered[0].isdigit():
+                                                                date_map[premiered] = (key, value)
+                                            if media_premiered in date_map:
+                                                epi_index, epi_value = date_map[media_premiered]
+                                                self.update_episode(epi_value, episode, info_json, is_write_json, meta_code, frequency=epi_index)
+                                            break
 
-                                for item in meta_info['credits']:
-                                    meta = episode.writers.new()
-                                    meta.role = item['role']
-                                    meta.name = item['name']
-                                    meta.photo = item['thumb']
-                                for item in meta_info['director']:
-                                    meta = episode.directors.new()
-                                    meta.role = item['role']
-                                    meta.name = item['name']
-                                    meta.photo = item['thumb']
-                                """
+                    # 시즌 title, summary
+                    if is_write_json and only_season_title_show == False:
+                        self.save_info(media, info_json)
 
+                    # 2021-09-15 주석처리함. 임의의 시즌으로 분할하는 경우를 고려
+                    #if not has_multiple_seasons:
+                    #    return
+
+                    try:
+                        data = JSON.ObjectFromURL('http://127.0.0.1:32400/library/metadata/%s' % media.id)
+                        section_id = (data.get('MediaContainer') or {}).get('librarySectionID') or "-1"
+                    except Exception:
+                        section_id = "-1"
+                    token = self.get_token()
+                    for media_season_index in media.seasons:
+                        Log.Debug('[%s] media_season_index: %s', media.id, media_season_index)
+                        if media_season_index == '0':
+                            continue
+                        try:
+                            filepath = media.seasons[media_season_index].all_parts()[0].file
+                            tmp = os.path.basename(os.path.dirname(filepath))
+                            season_title = None
+                            if tmp != metadata.title:
+                                Log.Debug("[%s] season path title: %s", media.id, tmp)
+                                match = Regex(r'(?P<season_num>\d{1,8})\s*(?P<season_title>.*?)(?:\s(?P<meta_id>\{.*?\}))?$').search(tmp)
+                                Log.Debug('[%s] MATCH: %s', media.id, match.groups())
+                                if match and (tmp.startswith(u'시즌 ') or tmp.startswith(u'Season ')):
+                                    Log.Debug('[%s] media_season_index: %s', media.id, media_season_index)
+                                    Log.Debug('[%s] FORCE season_num: %s', media.id, match.group('season_num'))
+                                    Log.Debug('[%s] FORCE season_title: %s', media.id, match.group('season_title'))
+                                    if int(match.group('season_num')) == int(media_season_index) and match.group('season_title'):
+                                        season_title = match.group('season_title')
+                            metadata_season = metadata.seasons[media_season_index]
+                            Log.Debug("[%s] final season title: %s", media.id, season_title)
+                            Log.Debug("[%s] final season summary: %s", media.id, metadata_season.summary)
+                            url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&X-Plex-Token=%s' % (section_id, media.seasons[media_season_index].id, token)
+                            if season_title:
+                                url = url + "&title.value=%s" % urllib.quote(season_title.encode('utf8'))
+                            if metadata_season.summary:
+                                url = url + "&summary.value=%s" % urllib.quote(metadata_season.summary.encode('utf8'))
+                            if season_title or metadata_season.summary:
+                                request = PutRequest(url)
+                                urllib2.urlopen(request)
+                        except Exception as e:
+                            Log.Exception(str(e))
+                except Exception:
+                    Log.Exception('')
 
             """
             2026-03-12 halfaider
@@ -616,56 +705,59 @@ class ModuleKtv(AgentBase):
                     continue
                 bucket.validate_keys(urls)
 
-            # 시즌 title, summary
-            if is_write_json and only_season_title_show == False:
-                self.save_info(media, info_json)
+    def convert_season_index(self, season_index):
+        try:
+            index = int(season_index)
+        except Exception:
+            index = 1
+        # 다섯 자리 이상은 1 시즌 취급 (202501)
+        if index > 9999:
+            index = 1
+        # 네 자리 이상은 사용자 정의 시즌
+        elif index > 999:
+            index = index
+        # 세 자리 이상은 재생 버전별 시즌
+        elif index > 99:
+            index = index % 100
+        return str(index)
 
-            # 2021-09-15 주석처리함. 임의의 시즌으로 분할하는 경우를 고려
-            #if not flag_media_season:
-            #    return
+    def get_data_from_info_json(self, search_code, search_title, info_json = None, is_write_json = False):
+        meta_info = {}
+        if info_json and search_code in info_json:
+            # 방송중이라면 저장된 정보를 무시해야 새로운 에피를 갱신
+            if info_json[search_code]['status'] == 2:
+                meta_info = info_json[search_code]
+        if not meta_info:
+            meta_info = self.send_info(self.module_name, search_code, title=search_title)
+            if meta_info and is_write_json:
+                info_json[search_code] = meta_info
+        return meta_info
 
-            url = 'http://127.0.0.1:32400/library/metadata/%s' % media.id
-            data = JSON.ObjectFromURL(url)
-            section_id = data['MediaContainer']['librarySectionID']
-            #token = Request.Headers['X-Plex-Token']
-            token = self.get_token()
-            for media_season_index in media.seasons:
-                Log('media_season_index is %s', media_season_index)
-                if media_season_index == '0':
-                    continue
-                try:
-                    filepath = media.seasons[media_season_index].all_parts()[0].file
-                    tmp = os.path.basename(os.path.dirname(filepath))
-                    season_title = None
-                    if tmp != metadata.title:
-                        Log(tmp)
-                        match = Regex(r'(?P<season_num>\d{1,8})\s*(?P<season_title>.*?)(?:\s(?P<meta_id>\{.*?\}))?$').search(tmp)
-                        Log('MATCH: %s' % str(match.groups()))
-                        if match and (tmp.startswith(u'시즌 ') or tmp.startswith(u'Season ')):
-                            Log('FORCE season_num : %s', match.group('season_num'))
-                            Log('FORCE season_title : %s', match.group('season_title'))
-                            Log('media_season_index : %s', media_season_index)
-                            if int(match.group('season_num')) == int(media_season_index) and match.group('season_title') is not None:
-                                season_title = match.group('season_title')
-                    try:
-                        Log("VAR season_title : %s" % season_title)
-                        Log("VAR season_title : %s" % metadata_season.summary)
-                    except Exception: pass
-                    metadata_season = metadata.seasons[media_season_index]
-                    if season_title is None:
-                        if metadata_season.summary != None:
-                            url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&summary.value=%s&X-Plex-Token=%s' % (section_id, media.seasons[media_season_index].id, urllib.quote(metadata_season.summary.encode('utf8')), token)
-                    else:
-                        if metadata_season.summary == None:
-                            metadata_season.summary = ''
-                        url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s&X-Plex-Token=%s' % (section_id, media.seasons[media_season_index].id, urllib.quote(season_title.encode('utf8')), urllib.quote(metadata_season.summary.encode('utf8')), token)
+    def reset_episode_metadata(self, episode):
+        episode.title = None
+        episode.summary = None
+        episode.originally_available_at = None
+        episode.rating = None
+        episode.duration = None
+        episode.content_rating = None
+        episode.content_rating_age = None
+        episode.writers.clear()
+        episode.directors.clear()
+        episode.producers.clear()
+        episode.guest_stars.clear()
+        episode.thumbs.validate_keys([])
+        episode.absolute_index = None
+        # extras 초기화는 어떻게?
+        #episode.extras
+        return episode
 
-                    #Log('URL : %s' % url) # 토큰 로그에 기록됨
-                    request = PutRequest(url)
-                    response = urllib2.urlopen(request)
-                except Exception as e:
-                    Log.Exception(str(e))
-        except Exception as e:
-            Log.Exception(str(e))
-
-
+    def parse_guid(self, guid):
+        path = guid.split("?")[0].split("://")[-1]
+        parts = path.split("/")
+        show_id, season, episode = (parts + [None, None])[:3]
+        return {
+            'show': show_id,
+            'season': season,
+            'episode': episode,
+            'is_episode': bool(episode)
+        }
