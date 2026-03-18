@@ -335,7 +335,7 @@ class ModuleKtv(AgentBase):
                 if daum_episode_info and is_write_json:
                     info_json[code] = daum_episode_info
             return daum_episode_info
-        
+
         def set_episode_thumb(thumb_url, episode, valid_thumb_names):
             if not thumb_url or thumb_url in valid_thumb_names:
                 return
@@ -361,7 +361,7 @@ class ModuleKtv(AgentBase):
             if valid_thumb_names:
                 break
         episode.thumbs.validate_keys(valid_thumb_names)
-        
+
         for site in site_orders:
             try:
                 if site not in show_epi_info:
@@ -385,7 +385,7 @@ class ModuleKtv(AgentBase):
                 Log.Exception('')
             if episode.originally_available_at and episode.title and episode.summary:
                 break
-        
+
         daum_episode_info = daum_episode_info or get_daum_episode_info(daum_code, info_json, is_write_json, self.module_name, self.send_episode_info)
         if daum_episode_info:
             for item in daum_episode_info.get('extras') or ():
@@ -406,7 +406,7 @@ class ModuleKtv(AgentBase):
                         break
                 except Exception:
                     pass
-        
+
         search_key = u'search|%s' % media.title
         search_data = None
         info_json = {}
@@ -464,7 +464,7 @@ class ModuleKtv(AgentBase):
             #self.reset_episode_metadata(metadata_episode)
             #metadata_episode.title = "테스트"
             return
-        
+
         # 메타데이터 초기화
         if media.title:
             metadata.title = media.title.split('|')[0].strip()
@@ -482,15 +482,15 @@ class ModuleKtv(AgentBase):
         metadata.banners.validate_keys([])
         metadata.roles.clear()
         metadata.genres.clear()
-        try: 
+        try:
             metadata.originally_available_at = Datetime.ParseDate(main_meta_info['premiered']).date()
-        except Exception: 
-            metadata.originally_available_at = ''
+        except Exception:
+            pass
         for tmp in main_meta_info.get('genre') or ():
             metadata.genres.add(tmp)
 
         series_data = (search_data.get('daum') or {}).get('series') or ()
-        
+
         @parallelize
         def UpdateSeasons():
             # 포스터 초기화용 목록
@@ -527,7 +527,7 @@ class ModuleKtv(AgentBase):
                     search_media_season_index = self.convert_season_index(media_season_index)
                     if search_media_season_index in ['0', '00']:
                         continue
-                    
+
                     search_title = media.title.replace(u'[종영]', '')
                     search_title = search_title.split('|')[0].strip()
                     # 신과함께3 단일 미디어파일이면 search_media_season_index 1이여서 시즌1이 매칭됨.
@@ -570,7 +570,7 @@ class ModuleKtv(AgentBase):
                             meta_info = main_meta_info
                         else:
                             meta_info = self.get_data_from_info_json(search_code, search_title, info_json, is_write_json)
-                            
+
                         Log.Debug("[%s] TITLE: %s", media.id, meta_info.get('title'))
                         Log.Debug("[%s] SUMMARY: %s", media.id, meta_info.get('plot'))
                         Log.Debug("[%s] METAINFO_CODE: %s", media.id, meta_info.get('code'))
