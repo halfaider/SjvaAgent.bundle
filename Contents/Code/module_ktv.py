@@ -234,7 +234,7 @@ class ModuleKtv(AgentBase):
                 actor.role = item.get('role') or '출연'
                 actor.name = item.get('name') or item.get('name2') or role_type
                 actor.photo = item.get('thumb')
-                Log('%s - %s'% (actor.name, actor.photo))
+                #Log.Debug('%s - %s'% (actor.name, actor.photo))
 
         # poster
         ProxyClass = Proxy.Media
@@ -592,24 +592,26 @@ class ModuleKtv(AgentBase):
                             self.update_info(metadata, meta_info, image_urls, media_season_index)
 
                         # 에피소드 업데이트
-                        date_map = {}
+                        meta_info_episodes_by_date = {}
                         meta_info_episodes = (meta_info.get('extra_info') or {}).get('episodes') or {}
-                        for media_episode_index in media.seasons[media_season_index].episodes:
-                            episode = metadata.seasons[media_season_index].episodes[media_episode_index]
+                        media_episodes = media.seasons[media_season_index].episodes
+                        metadata_episodes = metadata.seasons[media_season_index].episodes
+                        for media_episode_index in media_episodes:
+                            media_episode = media_episodes[media_episode_index]
+                            metadata_episode = metadata_episodes[media_episode_index]
                             @task
-                            def UpdateEpisode(episode=episode, media_episode_index=media_episode_index, media=media, meta_info_episodes=meta_info_episodes, info_json=info_json, is_write_json=is_write_json, meta_code=meta_info.get('code') or metadata.id, date_map=date_map):
-                                originally_available_at = episode.originally_available_at or ''
+                            def UpdateEpisode(media_episode=media_episode, metadata_episode=metadata_episode, media_episode_index=media_episode_index, media=media, meta_info_episodes=meta_info_episodes, info_json=info_json, is_write_json=is_write_json, meta_code=meta_info.get('code') or metadata.id, meta_info_episodes_by_date=meta_info_episodes_by_date):
+                                originally_available_at = metadata_episode.originally_available_at or ''
                                 # 에피소드 정보 초기화
-                                self.reset_episode_metadata(episode)
-                                if media_episode_index in meta_info_episodes:
-                                    show_epi_info = meta_info_episodes[media_episode_index]
-                                    self.update_episode(show_epi_info, episode, info_json, is_write_json, meta_code)
+                                self.reset_episode_metadata(metadata_episode)
+                                meta_info_episode = meta_info_episodes.get(media_episode_index)
+                                if meta_info_episode:
+                                    self.update_episode(meta_info_episode, metadata_episode, info_json, is_write_json, meta_code)
                                 else:
-                                    #에피정보가 없다면 날짜로 매칭
+                                    # 에피 번호로 검색이 안 되면 날짜로 매칭 시도
                                     path_date = ""
                                     try:
-                                        episode_media = media.seasons[media_season_index].episodes[media_episode_index]
-                                        episode_path = episode_media.all_parts()[0].file
+                                        episode_path = media_episode.all_parts()[0].file
                                         match = Regex(r'\.(?P<date>\d{6})\.').search(episode_path)
                                         if match:
                                             six = match.group('date')
@@ -622,26 +624,29 @@ class ModuleKtv(AgentBase):
                                     except Exception:
                                         Log.Exception('')
                                     date_texts = []
-                                    for date_text in (originally_available_at, media_episode_index, path_date):
+                                    for date_text in (path_date, originally_available_at, media_episode_index):
                                         if isinstance(date_text, str) and len(date_text) > 5:
                                             date_texts.append(date_text)
-                                    Log.Debug("[%s] cadidates for date: %s", media.id, date_texts)
+                                    #Log.Debug("[%s] candidates for matching date: %s", media.id, date_texts)
                                     for text in date_texts:
                                         match = Regex(r'(\d{4}-\d{2}-\d{2})').search(text)
                                         if match:
                                             media_premiered = match.group(1)
-                                            if not date_map:
+                                            if not meta_info_episodes_by_date:
                                                 for key, value in meta_info_episodes.items():
                                                     for site in ('daum', 'tving', 'wavve'):
                                                         site_data = value.get(site)
                                                         if site_data:
                                                             premiered = site_data.get('premiered')
                                                             if isinstance(premiered, str) and premiered[0].isdigit():
-                                                                date_map[premiered] = (key, value)
-                                            if media_premiered in date_map:
-                                                epi_index, epi_value = date_map[media_premiered]
-                                                self.update_episode(epi_value, episode, info_json, is_write_json, meta_code, frequency=epi_index)
-                                            break
+                                                                meta_info_episodes_by_date[premiered] = (key, value)
+                                            if media_premiered in meta_info_episodes_by_date:
+                                                epi_index, epi_value = meta_info_episodes_by_date[media_premiered]
+                                                Log.Debug("[%s] '%s' match with '%s'", media.id, media_premiered, epi_index)
+                                                self.update_episode(epi_value, metadata_episode, info_json, is_write_json, meta_code, frequency=epi_index)
+                                                break
+                                    else:
+                                        Log.Debug("[%s] No episode info. found: %s", media.id, media_episode_index)
 
                     # 시즌 title, summary
                     if is_write_json and only_season_title_show == False:
