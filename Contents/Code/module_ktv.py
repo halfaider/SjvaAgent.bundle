@@ -379,7 +379,9 @@ class ModuleKtv(AgentBase):
                         episode.title = epi_info['title'] or epi_info.get('premiered') or ''
                         if frequency and episode.title:
                             episode.title = u'%s회 (%s)' % (frequency, episode.title)
-                episode.originally_available_at = Datetime.ParseDate(epi_info['premiered']).date()
+                parsed_date = Datetime.ParseDate(epi_info.get('premiered') or '')
+                if parsed_date:
+                    episode.originally_available_at = parsed_date.date()
                 if not episode.summary and epi_info.get('plot'):
                     episode.summary = epi_info['plot']
             except Exception:

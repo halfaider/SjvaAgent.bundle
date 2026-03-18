@@ -36,7 +36,7 @@ class AgentShow(Agent.TV_Shows):
 
 
     def update(self, metadata, media, lang):
-        Log('updata : %s', metadata.id)
+        Log('update : %s', metadata.id)
         # 2022-02-06
         # 파일로 된 부가영상이 먼저 나오게 순서 변경
         # Y로 호출할 뿐 모듈은 상관 없음. static function

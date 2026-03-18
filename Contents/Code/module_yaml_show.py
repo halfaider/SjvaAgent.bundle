@@ -13,7 +13,7 @@ class ModuleYamlShow(ModuleYamlBase):
             if filepath['show'] is None:
                 return False
             data = self.yaml_load(filepath['show'])
-            Log(self.d(data))
+            #Log(self.d(data))
             is_primary = self.get(data, 'primary', 'false')
             if is_primary != 'true':
                 return False
@@ -110,7 +110,7 @@ class ModuleYamlShow(ModuleYamlBase):
                             pass
                     season['episodes'] = to_dict
 
-            Log(self.d(data))
+            #Log(self.d(data))
 
             if is_primary:
                 metadata.title = self.get(data, 'title', media.title)
@@ -179,7 +179,7 @@ class ModuleYamlShow(ModuleYamlBase):
                                 continue
 
                             data_episode = data_season['episodes'][str(media_episode_index)]
-                            Log(self.d(data_episode))
+                            #Log(self.d(data_episode))
 
                             self.set_data(metadata_episode, data_episode, 'title', is_primary)
                             self.set_data(metadata_episode, data_episode, 'summary', is_primary)
