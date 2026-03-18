@@ -149,7 +149,7 @@ class ModuleYamlShow(ModuleYamlBase):
             def UpdateSeasons():
                 for media_season_index in index_list:
                     Log('media_season_index is %s', media_season_index)
-                    Log('media_season_index is %s', type(media_season_index))
+                    #Log('media_season_index is %s', type(media_season_index))
                     metadata_season = metadata.seasons[media_season_index]
                     if str(media_season_index) not in data['seasons']:
                         continue
