@@ -2,17 +2,17 @@
 import os, json, urllib, unicodedata, urllib2
 from .agent_base import AgentBase, PutRequest
 
-Log = Log
-Regex = Regex
-MetadataSearchResult = MetadataSearchResult
-Datetime = Datetime
-Proxy = Proxy
-HTTP = HTTP
 Core = Core
-Prefs = Prefs
 parallelize = parallelize
 task = task
-JSON = JSON
+Log = Log # type: Framework.api.logkit.LogKit
+Regex = Regex # type: Framework.api.utilkit.RegexKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.ObjectFactory
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
+HTTP = HTTP # type: Framework.api.networkkit.HTTPKit
+Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
+JSON = JSON # type: Framework.api.parsekit.JSONKit
 
 
 class ModuleKtv(AgentBase):
@@ -196,7 +196,7 @@ class ModuleKtv(AgentBase):
     def update_info(self, metadata, remote_metadata, image_urls, media_season_index):
         metadata_season = metadata.seasons[media_season_index]
         season_index = self.convert_season_index(media_season_index)
-        Log.Debug("업데이트: %s - 시즌 %d (%s)", metadata.title, season_index, media_season_index)
+        Log.Debug("업데이트: %s - 시즌 %s (%s)", metadata.title, season_index, media_season_index)
         metadata_season.summary = remote_metadata.get('plot') or ''
 
         # metadata 객체의 정보를 최신 시즌의 정보로 업데이트
@@ -424,7 +424,7 @@ class ModuleKtv(AgentBase):
 
         module_prefs = self.get_module_prefs(self.module_name)
         try:
-            seasons_to_update = json.loads(Prefs['seasons_to_update'])
+            seasons_to_update = JSON.ObjectFromString(Prefs['seasons_to_update'])
         except Exception:
             seasons_to_update = {}
         Log("[%s] seasons to update: %s", media.id, seasons_to_update)

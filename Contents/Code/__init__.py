@@ -11,6 +11,11 @@ from .agent_show import AgentShow
 from .agent_music import AgentAlbum, AgentArtist
 from .route_util import *
 
+Log = Log # type: Framework.api.logkit.LogKit
+Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
+HTTP = HTTP # type: Framework.api.networkkit.HTTPKit
+Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
+
 """
 if tmp == 'Jav Censored':
     from .agent_jav_censored import AgentJavCensored
