@@ -2,9 +2,9 @@
 import os, json, urllib, unicodedata, urllib2
 from .agent_base import AgentBase, PutRequest
 
-Core = Core
-parallelize = parallelize
-task = task
+Core = Core # Framework.core.FrameworkCore
+parallelize = parallelize # Framework.api.threadkit._parallelize_decorator
+task = task # Framework.api.threadkit._task_decorator
 Log = Log # type: Framework.api.logkit.LogKit
 Regex = Regex # type: Framework.api.utilkit.RegexKit
 MetadataSearchResult = MetadataSearchResult # type: Framework.objects.ObjectFactory
@@ -371,16 +371,17 @@ class ModuleKtv(AgentBase):
                     if not daum_episode_info:
                         continue
                     epi_info = daum_episode_info
-                    episode.title = daum_episode_info['title']
+                    if not episode.title and epi_info.get('title'):
+                        episode.title = epi_info['title']
                 else:
                     epi_info = show_epi_info[site]
-                    # 다음 title 우선
-                    if not episode.title:
-                        episode.title = epi_info['title'] if epi_info.get('title') else epi_info['premiered']
-                        if frequency:
+                    if not episode.title and epi_info.get('title'):
+                        episode.title = epi_info['title'] or epi_info.get('premiered') or ''
+                        if frequency and episode.title:
                             episode.title = u'%s회 (%s)' % (frequency, episode.title)
                 episode.originally_available_at = Datetime.ParseDate(epi_info['premiered']).date()
-                episode.summary = epi_info['plot']
+                if not episode.summary and epi_info.get('plot'):
+                    episode.summary = epi_info['plot']
             except Exception:
                 Log.Exception('')
             if episode.originally_available_at and episode.title and episode.summary:
