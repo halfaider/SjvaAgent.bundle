@@ -177,6 +177,11 @@ class ModuleYamlBase(AgentBase):
         try:
             #Log('set_data : %s', field)
             value = self.get(data, field, None)
+            # u'null' 값이 ParseDate()에 입력되면 오류 발생
+            if value == 'null':
+                Log.Error("%s - %s %s", field, value, type(value))
+                value = None
+                return
             if value is not None:
                 if field == 'title_sort':
                     value = unicodedata.normalize('NFKD', value)

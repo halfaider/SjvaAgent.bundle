@@ -709,22 +709,79 @@ class AgentBase(object):
             Log.Exception(str(e))
 
 
-    def set_http_data(self, image_url, container, valid_names, sort_order=1):
+    def set_http_data(self, url, container, valid_names, sort_order=1, is_image=True):
         try:
-            image_data = HTTP.Request(image_url).content
+            http_data = HTTP.Request(url).content
         except Exception as e:
             Log.Error(str(e))
-            image_data = None
-        if not image_data or len(image_data) < 16:
-            Log.Warn("유효하지 않은 데이터: %s", image_url)
+            http_data = None
+        if not http_data or len(http_data) < 16:
+            Log.Warn("유효하지 않은 데이터: %s", url)
             return False
-        container[image_url] = Proxy.Media(image_data, sort_order=sort_order)
+        if is_image:
+            proxy_class = Proxy.Preview
+        else:
+            proxy_class = Proxy.Media
+        container[url] = proxy_class(http_data, sort_order=sort_order)
         if isinstance(valid_names, list):
-            valid_names.append(image_url)
+            valid_names.append(url)
         elif isinstance(valid_names, set):
-            valid_names.add(image_url)
+            valid_names.add(url)
+        return True
+    
+    
+    def is_yaml_enabled(self, media):
+        try:
+            yaml_disabled = Prefs['yaml_disabled']
+        except Exception:
+            yaml_disabled = ''
+        if yaml_disabled == 'all':
+            return False
+        disabled_libraries = []
+        for section_num in yaml_disabled.split(','):
+            tmp = section_num.strip()
+            try:
+                int(tmp)
+                disabled_libraries.append(tmp)
+            except Exception:
+                pass
+        try:
+            data = AgentBase.my_JSON_ObjectFromURL('http://127.0.0.1:32400/library/metadata/%s' % media.id)
+            section_id = str(data['MediaContainer']['librarySectionID'])
+            return section_id not in disabled_libraries
+        except Exception as e:
+            Log.Exception(str(e))
         return True
 
+
+    def remove_metadata(self, metadata, media, metadata_type="TV Shows"):
+        """
+        2026-03-19 halfaider
+        업데이트 전 _stored 폴더를 삭제
+        """
+        Log("[%s] contributors: %s", media.id, metadata.contributors)
+        try:
+            shoud_remove_metadata = Prefs['remove_metadata_on_update']
+        except Exception:
+            shoud_remove_metadata = False
+        if shoud_remove_metadata:
+            delimiter = "Library/Application Support/Plex Media Server"
+            parts = Core.storage.data_path.split(delimiter)
+            uid_hash = Core.data.hashing.sha1(metadata.guid)
+            bundle_path = Core.storage.join_path(parts[0], delimiter, "Metadata", metadata_type, uid_hash[0], uid_hash[1:] + '.bundle')
+            upload_path = Core.storage.join_path(bundle_path, "Uploads")
+            content_path = Core.storage.join_path(bundle_path, "Contents")
+            to_be_deleted = [upload_path]
+            for contributor in metadata.contributors:
+                contributor_path = Core.storage.join_path(content_path, contributor)
+                to_be_deleted.append(contributor_path)
+            for target_path in to_be_deleted:
+                try:
+                    if Core.storage.dir_exists(target_path):
+                        Core.storage.remove_tree(target_path)
+                        Log("[%s] Removed folder: %s", media.id, target_path)
+                except Exception as e:
+                    Log.Exception("[%s] 삭제 실패: %s", media.id, target_path)
 
 
 

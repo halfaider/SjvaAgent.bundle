@@ -249,12 +249,7 @@ class ModuleFtv(AgentBase):
                     for tmp in meta_info['extra_info']['themes']:
                         if tmp not in metadata.themes:
                             try:
-                                theme_data = HTTP.Request(tmp).content
-                                if theme_data and len(theme_data) > 16:
-                                    metadata.themes[tmp] = Proxy.Media(theme_data)
-                                    valid_names.append(tmp)
-                                else:
-                                    Log.Warn("유효하지 않은 데이터: %s", theme_data)
+                                self.set_http_data(tmp, metadata.themes, valid_names, sort_order=len(valid_names) + 1, is_image=False)
                             except Exception:
                                 pass
                 tvdb_id = None
@@ -267,12 +262,7 @@ class ModuleFtv(AgentBase):
                     Log('테마 : %s', url)
                     if url not in metadata.themes:
                         try:
-                            theme_data = HTTP.Request(url).content
-                            if theme_data and len(theme_data) > 16:
-                                metadata.themes[url] = Proxy.Media(theme_data)
-                                valid_names.append(url)
-                            else:
-                                Log.Warn("유효하지 않은 데이터: %s", theme_data)
+                            self.set_http_data(url, metadata.themes, valid_names, sort_order=len(valid_names) + 1, is_image=False)
                         except Exception:
                             pass
                 metadata.themes.validate_keys(valid_names)
@@ -286,30 +276,27 @@ class ModuleFtv(AgentBase):
 
     def update_season(self, season_no, metadata_season, meta_info, media):
         #Log(json.dumps(meta_info, indent=4))
-        valid_names = set()
-        poster_index = art_index = banner_index = 0
-        art_map = {'poster': [metadata_season.posters, 0], 'landscape' : [metadata_season.art, 0], 'banner':[metadata_season.banners, 0]}
+        templates = {
+            'poster': (metadata_season.posters, set()),
+            'landscape' : (metadata_season.art, set()),
+            'banner':[metadata_season.banners, set()]
+        }
         Log('Season no : %s' % season_no)
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
+            image_url = item.get('thumb') or item.get('value')
+            aspect = item.get('aspect') or 'poster'
+            process = templates.get(aspect)
+            if not process or not image_url or image_url in process[1]:
+                continue
             try:
-                target = art_map[item['aspect']]
-                image_url = item.get('thumb') or item.get('value')
-                if not image_url or image_url in target[0]:
-                    continue
-                image_data = HTTP.Request(image_url).content
-                if not image_data or len(image_data) < 16:
-                    Log.Warn("유효하지 않은 이미지 데이터: %s", image_url)
-                    continue
-                target[1] = target[1] + 1
-                target[0][image_url] = Proxy.Media(image_data, sort_order=target[1])
-                valid_names.add(image_url)
+                self.set_http_data(image_url, process[0], process[1], sort_order=len(process[1]) + 1)
             except Exception:
                 Log.Exception('시즌 포스터 다운로드 중 오류')
 
-        metadata_season.summary = meta_info['plot']
-        metadata_season.title = meta_info['season_name']
-        metadata_season.posters.validate_keys(valid_names)
-        metadata_season.art.validate_keys(valid_names)
+        metadata_season.summary = meta_info.get('plot') or ''
+        metadata_season.title = meta_info.get('season_name') or ''
+        for _, containers in templates.items():
+            containers[0].validate_keys(containers[1])
 
         # 2022-05-12
         if True or int(season_no) > 100:

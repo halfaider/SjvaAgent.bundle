@@ -37,6 +37,7 @@ class AgentShow(Agent.TV_Shows):
 
     def update(self, metadata, media, lang):
         Log('update : %s', metadata.id)
+        self.instance_list[metadata.id[0]].remove_metadata(metadata, media)
         # 2022-02-06
         # 파일로 된 부가영상이 먼저 나오게 순서 변경
         # Y로 호출할 뿐 모듈은 상관 없음. static function
@@ -45,7 +46,7 @@ class AgentShow(Agent.TV_Shows):
             local_tv_extras.update(metadata, media)
 
         self.instance_list[metadata.id[0]].update(metadata, media, lang)
-        if metadata.id[0] != 'Y':
+        if metadata.id[0] != 'Y' and self.instance_list[metadata.id[0]].is_yaml_enabled(media):
             self.instance_list['Y'].update(metadata, media, lang, is_primary=False)
 
 

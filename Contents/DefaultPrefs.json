@@ -71,5 +71,17 @@
 		"label": "특정 시즌만 업데이트할 메타데이터 목록 (JSON 형식) {\"metadata_id\": [season_number]}",
 		"type": "text",
 		"default": "{\"-1\": [200901, 201001], \"-2\": [7, 8, 9]}"
+	},
+	{
+		"id": "yaml_disabled",
+		"label": "show.yaml을 보조 메타데이터로 사용하지 않을 섹션 ID 목록 (all 이면 모두. 구분자 ,)",
+		"type": "text",
+		"default": ""
+	},
+	{
+		"id": "remove_metadata_on_update",
+		"label": "메타데이터 새로고침 시 기존 메타데이터 전부 삭제 (업로드 포함)",
+		"type": "bool",
+		"default": "False"
 	}
 ]

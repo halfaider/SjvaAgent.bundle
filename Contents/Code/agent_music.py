@@ -67,7 +67,7 @@ class AgentAlbum(Agent.Album):
         Log('updata : %s', metadata.id)
         need_lyric = self.instance_list[metadata.id[0]].update(metadata, media, lang)
 
-        if metadata.id[0] != 'Y':
+        if metadata.id[0] != 'Y' and self.instance_list[metadata.id[0]].is_yaml_enabled(media):
             need_lyric = self.instance_list['Y'].update(metadata, media, lang, is_primary=False)
 
 

@@ -193,32 +193,47 @@ class ModuleKtv(AgentBase):
         except Exception as e:
             Log.Exception(str(e))
 
-    def update_info(self, metadata, remote_metadata, image_urls, media_season_index):
-        metadata_season = metadata.seasons[media_season_index]
-        season_index = self.convert_season_index(media_season_index)
-        Log.Debug("업데이트: %s - 시즌 %s (%s)", metadata.title, season_index, media_season_index)
-        metadata_season.summary = remote_metadata.get('plot') or ''
+    def update_info(self, metadata, media, remote_metadata, data_urls, has_multiple_seasons):
+        if media.title:
+            metadata.title = media.title.split('|')[0].strip()
+        else:
+            metadata.title = ''
+        if not has_multiple_seasons:
+            metadata.title = remote_metadata.get('title') or metadata.title
+        metadata.original_title = metadata.title
+        metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
+        metadata.studio = remote_metadata.get('studio') or ''
+        metadata.content_rating = remote_metadata.get('mpaa') or ''
+        metadata.summary = remote_metadata.get('plot') or ''
+        try:
+            metadata.originally_available_at = Datetime.ParseDate(remote_metadata['premiered']).date()
+        except Exception:
+            pass
+        
+        # 장르
+        metadata.genres.clear()
+        for tmp in remote_metadata.get('genre') or ():
+            metadata.genres.add(tmp)
 
-        # metadata 객체의 정보를 최신 시즌의 정보로 업데이트
+        # poster
+        poster_templates = {
+            'poster': metadata.posters,
+            'landscape': metadata.art,
+            'banner': metadata.banners
+        }
+        for item in sorted(remote_metadata.get('thumb') or (), key=lambda k: k.get('score') or 0, reverse=True):
+            image_url = item.get('thumb') or item.get('value')
+            aspect = item.get('aspect') or 'poster'
+            container = poster_templates.get(aspect)
+            if not container or not image_url:
+                continue
+            try:
+                self.set_http_data(image_url, container, data_urls[aspect], len(data_urls[aspect]) + 1)
+            except Exception as e:
+                Log.Exception(str(e))
 
         # 부가영상
-        for item in remote_metadata.get('extras') or ():
-            try:
-                mode = item.get('mode') or ''
-                content_url = item.get('content_url') or ''
-                content_type = item.get('content_type') or 'other'
-                extra_class = self.extra_map.get(content_type.lower())
-                if not extra_class or not mode or not content_url:
-                    continue
-                url = 'sjva://sjva.me/playvideo/%s|%s' % (mode, content_url)
-                metadata.extras.add(extra_class(
-                    url=url,
-                    title=self.change_html(item.get('title') or ""),
-                    originally_available_at=Datetime.ParseDate(item.get('premiered') or "1900-01-01").date(),
-                    thumb=item.get('thumb') or self.no_thumb_url
-                ))
-            except Exception as e:
-                Log.Error(str(e))
+        self.set_extras(metadata, remote_metadata)
 
         # rating
         for item in remote_metadata.get('ratings') or ():
@@ -227,17 +242,20 @@ class ModuleKtv(AgentBase):
                 metadata.audience_rating = 0.0
 
         # role
-        #metadata.roles.clear()
-        for role_type in ['actor', 'director', 'credits']:
-            for item in remote_metadata.get(role_type) or ():
-                actor = metadata.roles.new()
-                actor.role = item.get('role') or '출연'
-                actor.name = item.get('name') or item.get('name2') or role_type
-                actor.photo = item.get('thumb')
-                #Log.Debug('%s - %s'% (actor.name, actor.photo))
+        metadata.roles.clear()
+        self.set_roles(metadata, remote_metadata)
+
+        # 테마
+        self.set_themes(metadata, remote_metadata, data_urls)
+    
+    def update_season(self, metadata, remote_metadata, data_urls, media_season_index):
+        metadata_season = metadata.seasons[media_season_index]
+        season_index = self.convert_season_index(media_season_index)
+        Log.Debug("업데이트: %s - 시즌 %s (%s)", metadata.title, season_index, media_season_index)
+        metadata_season.summary = remote_metadata.get('plot') or ''
 
         # poster
-        ProxyClass = Proxy.Media
+        ProxyClass = Proxy.Preview
         season_valid_names = set()
         poster_templates = {
             'poster': (metadata.posters, metadata_season.posters),
@@ -260,8 +278,7 @@ class ModuleKtv(AgentBase):
             """
             if not process or not image_url:
                 continue
-            # 시즌 0, 1은 건너뛰기
-            if image_url in image_urls[aspect] and season_index < 2:
+            if image_url in data_urls[aspect]:
                 continue
             try:
                 image_data = HTTP.Request(image_url).content
@@ -269,11 +286,11 @@ class ModuleKtv(AgentBase):
                     Log.Warn("유효하지 않은 이미지 데이터: %s", image_url)
                     continue
                 # sort_order 때문에 검사
-                if image_url not in image_urls[aspect]:
-                    process[0][image_url] = ProxyClass(image_data, sort_order=len(image_urls[aspect]) + 1)
-                    image_urls[aspect].add(image_url)
+                if image_url not in data_urls[aspect]:
+                    process[0][image_url] = ProxyClass(image_data, sort_order=len(data_urls[aspect]) + 1)
+                    data_urls[aspect].add(image_url)
                 # 시즌 번호가 2 이상인 경우 각 시즌에 포스터가 저장되도록
-                if season_index > 1 and image_url not in season_valid_names:
+                if image_url not in season_valid_names:
                     process[1][image_url] = ProxyClass(image_data, sort_order=len(season_valid_names) + 1)
                     season_valid_names.add(image_url)
             except Exception as e:
@@ -286,36 +303,16 @@ class ModuleKtv(AgentBase):
         """
         metadata_season.posters.validate_keys(season_valid_names)
         metadata_season.art.validate_keys(season_valid_names)
+        metadata_season.banners.validate_keys(season_valid_names)
 
+        # 부가영상
+        self.set_extras(metadata, remote_metadata)
+        
+        # role
+        #self.set_roles(metadata, remote_metadata)
+        
         # 테마
-        valid_names = []
-        if 'themes' in remote_metadata.get('extra_info') or {}:
-            for tmp in remote_metadata['extra_info']['themes']:
-                try:
-                    if tmp not in metadata.themes:
-                        self.set_http_data(tmp, metadata.themes, valid_names)
-                except Exception: pass
-
-        # 테마2
-
-        # Get the TVDB id from the Movie Database Agent
-        tvdb_id = None
-        if 'tmdb_id' in remote_metadata.get('extra_info') or {}:
-            tvdb_id = Core.messaging.call_external_function(
-                'com.plexapp.agents.themoviedb',
-                'MessageKit:GetTvdbId',
-                kwargs = dict(
-                    tmdb_id = remote_metadata['extra_info']['tmdb_id']
-                )
-            )
-        Log('TVDB_ID : %s for "%s"', tvdb_id, metadata_season.title)
-        if tvdb_id:
-            theme_url = 'https://tvthemes.plexapp.com/%s.mp3' % tvdb_id
-            if theme_url not in metadata.themes:
-                try:
-                    self.set_http_data(tmp, metadata.themes, valid_names, len(valid_names) + 1)
-                except Exception: pass
-        metadata.themes.validate_keys(valid_names)
+        self.set_themes(metadata, remote_metadata, data_urls)
 
     def update_episode(self, show_epi_info, episode, info_json, is_write_json, meta_code, frequency=None):
         site_orders = ['daum', 'tving', 'wavve']
@@ -468,40 +465,22 @@ class ModuleKtv(AgentBase):
             #metadata_episode.title = "테스트"
             return
 
+        # 미디어 초기화용 목록
+        data_urls = {
+            'poster': set(),
+            'landscape': set(),
+            'banner': set(),
+            'theme': set()
+        }
+
         # 메타데이터 초기화
-        if media.title:
-            metadata.title = media.title.split('|')[0].strip()
-        else:
-            metadata.title = ''
-        if not has_multiple_seasons:
-            metadata.title = main_meta_info.get('title') or metadata.title
-        metadata.original_title = metadata.title
-        metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
-        metadata.studio = main_meta_info.get('studio') or ''
-        metadata.content_rating = main_meta_info.get('mpaa') or ''
-        metadata.summary = main_meta_info.get('plot') or ''
-        metadata.posters.validate_keys([])
-        metadata.art.validate_keys([])
-        metadata.banners.validate_keys([])
-        metadata.roles.clear()
-        metadata.genres.clear()
-        try:
-            metadata.originally_available_at = Datetime.ParseDate(main_meta_info['premiered']).date()
-        except Exception:
-            pass
-        for tmp in main_meta_info.get('genre') or ():
-            metadata.genres.add(tmp)
+        self.update_info(metadata, media, main_meta_info, data_urls, has_multiple_seasons)
 
         series_data = (search_data.get('daum') or {}).get('series') or ()
 
         @parallelize
         def UpdateSeasons():
-            # 포스터 초기화용 목록
-            image_urls = {
-                'poster': set(),
-                'landscape': set(),
-                'banner': set()
-            }
+
             def get_sort_key(x):
                 try:
                     return int(x)
@@ -524,7 +503,7 @@ class ModuleKtv(AgentBase):
                     try:
                         sample_season_path = season_media.all_parts()[0].file
                     except Exception:
-                        sample_season_path = None
+                        sample_season_path = ''
                     Log.Debug("[%s] sample_season_path: %s", media.id, sample_season_path)
                     # 2022-04-05
                     search_media_season_index = self.convert_season_index(media_season_index)
@@ -568,7 +547,6 @@ class ModuleKtv(AgentBase):
                     Log.Debug('[%s] only_season_title_show: %s', media.id, only_season_title_show)
 
                     if not only_season_title_show:
-                        meta_info = None
                         if search_code == main_meta_info.get('code'):
                             meta_info = main_meta_info
                         else:
@@ -587,17 +565,28 @@ class ModuleKtv(AgentBase):
                                     break
 
                         metadata_season = metadata.seasons[media_season_index]
+                        """
+                        2026-03-19 halfaider
+                        모든 시즌 포스터에 1시즌의 포스터가 중복 저장되어 있을 경우 초기화
+                        """
+                        metadata_season.posters.validate_keys([])
+                        metadata_season.art.validate_keys([])
+                        metadata_season.banners.validate_keys([])
 
-                        @task
-                        def UpdateSeason(metadata=metadata, meta_info=meta_info, image_urls=image_urls, media_season_index=media_season_index):
-                            # 각 시즌의 정보를 metadata 객체에 업데이트
-                            self.update_info(metadata, meta_info, image_urls, media_season_index)
+                        if meta_info.get('code') != main_meta_info.get('code'):
+                            # Daum 시리즈로 매칭 시 각 시즌의 정보를 적용
+                            @task
+                            def UpdateSeason(metadata=metadata, meta_info=meta_info, data_urls=data_urls, media_season_index=media_season_index):
+                                self.update_season(metadata, meta_info, data_urls, media_season_index)
 
                         # 에피소드 업데이트
                         meta_info_episodes_by_date = {}
                         meta_info_episodes = (meta_info.get('extra_info') or {}).get('episodes') or {}
                         media_episodes = media.seasons[media_season_index].episodes
                         metadata_episodes = metadata.seasons[media_season_index].episodes
+                        Log.Debug("[%s] metadata episodes size: %s", media.id, len(metadata_episodes))
+                        Log.Debug("[%s] media episodes size: %s", media.id, len(media_episodes))
+                        Log.Debug("[%s] meta_info episodes size: %s", media.id, len(meta_info_episodes))
                         for media_episode_index in media_episodes:
                             media_episode = media_episodes[media_episode_index]
                             metadata_episode = metadata_episodes[media_episode_index]
@@ -698,20 +687,22 @@ class ModuleKtv(AgentBase):
                 except Exception:
                     Log.Exception('')
 
-            """
-            2026-03-12 halfaider
-            이걸 해줘야 고아 파일이 안 생김
-            """
-            for aspect, urls in image_urls.items():
-                if aspect == 'poster':
-                    bucket = metadata.posters
-                elif aspect == 'landscape':
-                    bucket = metadata.art
-                elif aspect == 'banner':
-                    bucket = metadata.banners
-                else:
-                    continue
-                bucket.validate_keys(urls)
+        """
+        2026-03-12 halfaider
+        이걸 해줘야 고아 파일이 안 생김
+        """
+        for data_type, urls in data_urls.items():
+            if data_type == 'poster':
+                bucket = metadata.posters
+            elif data_type == 'landscape':
+                bucket = metadata.art
+            elif data_type == 'banner':
+                bucket = metadata.banners
+            elif data_type == 'theme':
+                bucket = metadata.themes
+            else:
+                continue
+            bucket.validate_keys(urls)
 
     def convert_season_index(self, season_index):
         try:
@@ -769,3 +760,59 @@ class ModuleKtv(AgentBase):
             'episode': episode,
             'is_episode': bool(episode)
         }
+    
+    def set_themes(self, metadata, remote_metadata, data_urls):
+        # 테마
+        if 'themes' in remote_metadata.get('extra_info') or {}:
+            for tmp in remote_metadata['extra_info']['themes']:
+                try:
+                    if tmp not in metadata.themes:
+                        self.set_http_data(tmp, metadata.themes, data_urls['theme'], len(data_urls['theme']) + 1, False)
+                except Exception: pass
+
+        # 테마2
+        # Get the TVDB id from the Movie Database Agent
+        tvdb_id = None
+        if 'tmdb_id' in remote_metadata.get('extra_info') or {}:
+            tvdb_id = Core.messaging.call_external_function(
+                'com.plexapp.agents.themoviedb',
+                'MessageKit:GetTvdbId',
+                kwargs = dict(
+                    tmdb_id = remote_metadata['extra_info']['tmdb_id']
+                )
+            )
+        Log.Debug('TVDB_ID: %s for "%s"', tvdb_id, metadata.title)
+        if tvdb_id:
+            theme_url = 'https://tvthemes.plexapp.com/%s.mp3' % tvdb_id
+            if theme_url not in metadata.themes:
+                try:
+                    self.set_http_data(theme_url, metadata.themes, data_urls['theme'], len(data_urls['theme']) + 1, False)
+                except Exception: pass
+
+    def set_roles(self, metadata, remote_metadata):
+        for role_type in ['actor', 'director', 'credits']:
+            for item in remote_metadata.get(role_type) or ():
+                actor = metadata.roles.new()
+                actor.role = item.get('role') or '출연'
+                actor.name = item.get('name') or item.get('name2') or role_type
+                actor.photo = item.get('thumb')
+                #Log.Debug('%s - %s'% (actor.name, actor.photo))
+
+    def set_extras(self, metadata, remote_metadata):
+        for item in remote_metadata.get('extras') or ():
+            try:
+                mode = item.get('mode') or ''
+                content_url = item.get('content_url') or ''
+                content_type = item.get('content_type') or 'other'
+                extra_class = self.extra_map.get(content_type.lower())
+                if not extra_class or not mode or not content_url:
+                    continue
+                url = 'sjva://sjva.me/playvideo/%s|%s' % (mode, content_url)
+                metadata.extras.add(extra_class(
+                    url=url,
+                    title=self.change_html(item.get('title') or ""),
+                    originally_available_at=Datetime.ParseDate(item.get('premiered') or "1900-01-01").date(),
+                    thumb=item.get('thumb') or ''
+                ))
+            except Exception as e:
+                Log.Error(str(e))
