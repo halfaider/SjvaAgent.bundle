@@ -222,7 +222,7 @@ class ModuleKtv(AgentBase):
             'banner': metadata.banners
         }
         for item in sorted(remote_metadata.get('thumb') or (), key=lambda k: k.get('score') or 0, reverse=True):
-            image_url = item.get('thumb') or item.get('value')
+            image_url = item.get('value') or item.get('thumb')
             aspect = item.get('aspect') or 'poster'
             container = poster_templates.get(aspect)
             if not container or not image_url:
@@ -263,7 +263,7 @@ class ModuleKtv(AgentBase):
             'banner': (metadata.banners, metadata_season.banners)
         }
         for item in sorted(remote_metadata.get('thumb') or (), key=lambda k: k.get('score') or 0, reverse=True):
-            image_url = item.get('thumb') or item.get('value')
+            image_url = item.get('value') or item.get('thumb')
             aspect = item.get('aspect') or 'poster'
             process = poster_templates.get(aspect)
             """
@@ -350,9 +350,9 @@ class ModuleKtv(AgentBase):
                     if not daum_episode_info:
                         continue
                     for thumb in sorted(daum_episode_info['thumb'], key=lambda k: k.get('score') or 0, reverse=True):
-                        set_episode_thumb(thumb.get('thumb') or thumb.get('value'), episode, valid_thumb_names)
+                        set_episode_thumb(thumb.get('value') or thumb.get('thumb'), episode, valid_thumb_names)
                 else:
-                    set_episode_thumb(show_epi_info[site].get('thumb') or show_epi_info[site].get('value'), episode, valid_thumb_names)
+                    set_episode_thumb(show_epi_info[site].get('value') or show_epi_info[site].get('thumb'), episode, valid_thumb_names)
             except Exception:
                 Log.Exception('')
             if valid_thumb_names:

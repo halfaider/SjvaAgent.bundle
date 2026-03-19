@@ -173,7 +173,7 @@ class ModuleMovie(AgentBase):
             poster_index = art_index = banner_index = 0
             art_list = []
             for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
-                image_url = item.get('thumb') or item.get('value')
+                image_url = item.get('value') or item.get('thumb')
                 if not image_url or image_url in valid_names:
                     continue
                 if item['aspect'] == 'poster' and poster_index < 3:

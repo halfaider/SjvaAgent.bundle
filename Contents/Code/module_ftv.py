@@ -229,7 +229,7 @@ class ModuleFtv(AgentBase):
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
             try:
                 target = art_map[item['aspect']]
-                image_url = item.get('thumb') or item.get('value')
+                image_url = item.get('value') or item.get('thumb')
                 if not image_url or image_url in valid_names:
                     continue
                 if self.set_http_data(image_url, target[0], valid_names, target[1] + 1):
@@ -283,7 +283,7 @@ class ModuleFtv(AgentBase):
         }
         Log('Season no : %s' % season_no)
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
-            image_url = item.get('thumb') or item.get('value')
+            image_url = item.get('value') or item.get('thumb')
             aspect = item.get('aspect') or 'poster'
             process = templates.get(aspect)
             if not process or not image_url or image_url in process[1]:
