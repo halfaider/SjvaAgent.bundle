@@ -116,8 +116,10 @@ class ModuleYamlShow(ModuleYamlBase):
                 metadata.title = self.get(data, 'title', media.title)
                 metadata.original_title = self.get(data, 'original_title', metadata.title)
                 metadata.title_sort = unicodedata.normalize('NFKD', self.get(data, 'title_sort', metadata.title))
-                try: 
-                    metadata.originally_available_at = Datetime.ParseDate(self.get(data, 'originally_available_at', '')).date()
+                originally_available_at = self.get(data, 'originally_available_at', None)
+                try:
+                    if originally_available_at:
+                        metadata.originally_available_at = Datetime.ParseDate(originally_available_at).date()
                 except Exception as e: 
                     Log.Error(str(e))
             else:

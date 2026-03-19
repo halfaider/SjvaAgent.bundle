@@ -169,27 +169,25 @@ class ModuleMovie(AgentBase):
                 actor.name = item
 
             # art
-            valid_names = []
-            poster_index = art_index = banner_index = 0
+            templates = {'poster': [metadata.posters, set()], 'landscape' : [metadata.art, set()], 'banner':[metadata.banners, set()]}
             art_list = []
             for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
                 image_url = item.get('value') or item.get('thumb')
-                if not image_url or image_url in valid_names:
+                aspect = item.get('aspect') or 'poster'
+                target = templates.get(aspect)
+                if not target or not image_url or image_url in target[1]:
                     continue
-                if item['aspect'] == 'poster' and poster_index < 3:
-                    if self.set_http_data(image_url, metadata.posters, valid_names, poster_index + 1):
-                        poster_index = poster_index + 1
-                elif item['aspect'] == 'landscape' and art_index < 3:
+                if aspect == 'poster' and len(target[1]) < 3:
+                    self.set_http_data(image_url, metadata.posters, target[1], preview=item.get('thumb'))
+                elif aspect == 'landscape' and len(target[1]) < 3:
                     art_list.append(image_url)
-                    if self.set_http_data(image_url, metadata.art, valid_names, art_index + 1):
-                        art_index = art_index + 1
-                elif item['aspect'] == 'banner' and banner_index < 3:
-                    if self.set_http_data(image_url, metadata.banners, valid_names, banner_index + 1):
-                        banner_index = banner_index + 1
+                    self.set_http_data(image_url, metadata.art, target[1], preview=item.get('thumb'))
+                elif aspect == 'banner' and len(target[1]) < 3:
+                    self.set_http_data(image_url, metadata.banners, target[1], preview=item.get('thumb'))
 
-            metadata.posters.validate_keys(valid_names)
-            metadata.art.validate_keys(valid_names)
-            metadata.banners.validate_keys(valid_names)
+            metadata.posters.validate_keys(templates['poster'][1])
+            metadata.art.validate_keys(templates['landscape'][1])
+            metadata.banners.validate_keys(templates['banner'][1])
 
             metadata.reviews.clear()
             for item in meta_info['review']:

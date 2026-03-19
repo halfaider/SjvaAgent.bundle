@@ -621,10 +621,10 @@ class AgentBase(object):
             value = self.get_media_list(data, field)
             if len(value) > 0:
                 for media in value:
-                    image_url = media.get('thumb') or media.get('url')
+                    image_url = media.get('url') or media.get('thumb')
                     if not image_url or image_url in valid_names:
                         continue
-                    self.set_http_data(image_url, meta, valid_names, len(valid_names) + 1)
+                    self.set_http_data(image_url, meta, valid_names, preview=media.get('thumb'))
             meta.validate_keys(valid_names)
             #Log(meta)
 
@@ -709,30 +709,42 @@ class AgentBase(object):
             Log.Exception(str(e))
 
 
-    def set_http_data(self, url, container, valid_names, sort_order=1, is_image=True):
-        try:
-            http_data = HTTP.Request(url).content
-        except Exception as e:
-            Log.Error(str(e))
-            http_data = None
-        if not http_data or len(http_data) < 16:
-            Log.Warn("유효하지 않은 데이터: %s", url)
-            return False
-        if is_image:
-            proxy_class = Proxy.Preview
+    def set_http_data(self, url, container, valid_names, preview=None):
+        """
+        2026-03-20 halfaider
+        Media에는 원본 파일, Preview에는 원본 파일의 저용량을 지정
+        표시되는 포스터, 아트, 썸네일은 _stored 폴더에 저장되는데 Media가 우선 저장됨
+        agent 폴더에는 Preview가 우선 저장됨
+        """
+        sort_order = len(valid_names) + 1
+
+        def process(target_url, proxy_class):
+            try:
+                data = HTTP.Request(target_url).content
+            except Exception as e:
+                data = None
+                Log.Error("다운로드 실패 (%s): %s", target_url, str(e))
+
+            if data and len(data) >= 16:
+                # 추가할 때는 원본 url
+                container[url] = proxy_class(data, sort_order=sort_order)
+                if url not in valid_names:
+                    if isinstance(valid_names, list):
+                        valid_names.append(url)
+                    elif isinstance(valid_names, set):
+                        valid_names.add(url)
+            else:
+                Log.Warn("유효하지 않은 데이터: %s", target_url)
+        
+        if preview:
+            process(preview, Proxy.Preview)
         else:
-            proxy_class = Proxy.Media
-        container[url] = proxy_class(http_data, sort_order=sort_order)
-        if isinstance(valid_names, list):
-            valid_names.append(url)
-        elif isinstance(valid_names, set):
-            valid_names.add(url)
-        return True
-    
+            process(url, Proxy.Media)
+
     
     def is_yaml_enabled(self, media):
         try:
-            yaml_disabled = Prefs['yaml_disabled']
+            yaml_disabled = Prefs['yaml_disabled'] or ''
         except Exception:
             yaml_disabled = ''
         if yaml_disabled == 'all':

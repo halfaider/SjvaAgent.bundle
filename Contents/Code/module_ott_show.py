@@ -68,25 +68,23 @@ class ModuleOttShow(AgentBase):
                     actor.photo = item['thumb']
 
             # poster
-            valid_names = []
-            poster_index = art_index = banner_index = 0
+            templates = {'poster': [metadata.posters, set()], 'landscape' : [metadata.art, set()], 'banner':[metadata.banners, set()]}
             for item in sorted(meta_info['thumb'], key=lambda k: k['score'], reverse=True):
-                image_url = item.get('thumb') or item.get('value')
-                if not image_url or image_url in valid_names:
+                image_url = item.get('value') or item.get('thumb')
+                aspect = item.get('aspect') or 'poster'
+                target = templates.get(aspect)
+                if not target or not image_url or image_url in target[1]:
                     continue
-                if item['aspect'] == 'poster':
-                    if self.set_http_data(image_url, metadata.posters, valid_names, poster_index + 1):
-                        poster_index = poster_index + 1
-                elif item['aspect'] == 'landscape':
-                    if self.set_http_data(image_url, metadata.art, valid_names, art_index + 1):
-                        art_index = art_index + 1
-                elif item['aspect'] == 'banner':
-                    if self.set_http_data(image_url, metadata.banners, valid_names, banner_index + 1):
-                        banner_index = banner_index + 1
+                if aspect == 'poster':
+                    self.set_http_data(image_url, metadata.posters, target[1], preview=item.get('thumb'))
+                elif aspect == 'landscape':
+                    self.set_http_data(image_url, metadata.art, target[1], preview=item.get('thumb'))
+                elif aspect == 'banner':
+                    self.set_http_data(image_url, metadata.banners, target[1], preview=item.get('thumb'))
 
-            metadata.posters.validate_keys(valid_names)
-            metadata.art.validate_keys(valid_names)
-            metadata.banners.validate_keys(valid_names)
+            metadata.posters.validate_keys(templates['poster'][1])
+            metadata.art.validate_keys(templates['landscape'][1])
+            metadata.banners.validate_keys(templates['banner'][1])
 
             tmp = [int(x) for x in meta_info['extra_info']['episodes'].keys()]
             no_list = sorted(tmp, reverse=True)

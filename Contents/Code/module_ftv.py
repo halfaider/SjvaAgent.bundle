@@ -224,21 +224,19 @@ class ModuleFtv(AgentBase):
             Log('%s - %s'% (actor.name, actor.photo))
 
         # poster
-        valid_names = set()
-        art_map = {'poster': [metadata.posters, 0], 'landscape' : [metadata.art, 0], 'banner':[metadata.banners, 0]}
+        art_map = {'poster': [metadata.posters, set()], 'landscape' : [metadata.art, set()], 'banner':[metadata.banners, set()]}
         for item in sorted(meta_info['art'], key=lambda k: k['score'], reverse=True):
             try:
                 target = art_map[item['aspect']]
                 image_url = item.get('value') or item.get('thumb')
-                if not image_url or image_url in valid_names:
+                if not image_url or image_url in target[1]:
                     continue
-                if self.set_http_data(image_url, target[0], valid_names, target[1] + 1):
-                    target[1] = target[1] + 1
+                self.set_http_data(image_url, target[0], target[1], preview=item.get('thumb'))
             except Exception:
                 Log.Exception('포스터 다운로드 중 오류')
-        metadata.posters.validate_keys(valid_names)
-        metadata.art.validate_keys(valid_names)
-        metadata.banners.validate_keys(valid_names)
+        metadata.posters.validate_keys(art_map['poster'][1])
+        metadata.art.validate_keys(art_map['landscape'][1])
+        metadata.banners.validate_keys(art_map['banner'][1])
 
         # 테마2
 
@@ -249,7 +247,7 @@ class ModuleFtv(AgentBase):
                     for tmp in meta_info['extra_info']['themes']:
                         if tmp not in metadata.themes:
                             try:
-                                self.set_http_data(tmp, metadata.themes, valid_names, sort_order=len(valid_names) + 1, is_image=False)
+                                self.set_http_data(tmp, metadata.themes, valid_names)
                             except Exception:
                                 pass
                 tvdb_id = None
@@ -262,7 +260,7 @@ class ModuleFtv(AgentBase):
                     Log('테마 : %s', url)
                     if url not in metadata.themes:
                         try:
-                            self.set_http_data(url, metadata.themes, valid_names, sort_order=len(valid_names) + 1, is_image=False)
+                            self.set_http_data(url, metadata.themes, valid_names)
                         except Exception:
                             pass
                 metadata.themes.validate_keys(valid_names)
@@ -289,7 +287,7 @@ class ModuleFtv(AgentBase):
             if not process or not image_url or image_url in process[1]:
                 continue
             try:
-                self.set_http_data(image_url, process[0], process[1], sort_order=len(process[1]) + 1)
+                self.set_http_data(image_url, process[0], process[1], preview=item.get('thumb'))
             except Exception:
                 Log.Exception('시즌 포스터 다운로드 중 오류')
 

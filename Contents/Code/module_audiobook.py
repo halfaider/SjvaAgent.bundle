@@ -85,7 +85,7 @@ class ModuleAudiobookArtist(AgentBase):
             if 'author_intro' in data:
                 metadata.summary = data['author_intro']
             if 'poster' in data:
-                self.set_http_data(data['poster'], metadata.posters, valid_names, len(valid_names) + 1)
+                self.set_http_data(data['poster'], metadata.posters, valid_names)
                 metadata.posters.validate_keys(valid_names)
         except Exception as e:
             Log.Exception(str(e))
@@ -188,7 +188,7 @@ class ModuleAudiobookAlbum(AgentBase):
                 metadata.title = urllib.unquote(code[2:]) if code.startswith('BB') else media.title
                 metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
                 valid_names = set()
-                self.set_http_data(VARIOUS_ARTISTS_POSTER, metadata.posters, valid_names, 1)
+                self.set_http_data(VARIOUS_ARTISTS_POSTER, metadata.posters, valid_names)
                 metadata.posters.validate_keys(valid_names)
                 self.set_track(metadata, media)
                 return
@@ -208,7 +208,7 @@ class ModuleAudiobookAlbum(AgentBase):
             metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
             metadata.summary = data['desc']
             valid_names = set()
-            self.set_http_data(data['poster'], metadata.posters, valid_names, 1)
+            self.set_http_data(data['poster'], metadata.posters, valid_names)
             metadata.posters.validate_keys(valid_names)
 
             metadata.rating = float(data['ratings'])

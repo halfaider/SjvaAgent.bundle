@@ -90,17 +90,13 @@ class ModuleMusicNormalArtist(AgentBase):
         metadata.summary = '%s\n%s' % (data['desc'], data['info_desc'])
 
         valid_names = set()
-        idx = 1
         for poster in data['poster']:
-            if self.set_http_data(poster, metadata.posters, valid_names, idx):
-                idx = idx + 1
+            self.set_http_data(poster, metadata.posters, valid_names)
         metadata.posters.validate_keys(valid_names)
 
         valid_names = set()
-        idx = 1
         for art in data['art']:
-            if self.set_http_data(art, metadata.art, valid_names, idx):
-                idx = idx + 1
+            self.set_http_data(art, metadata.art, valid_names)
         metadata.art.validate_keys(valid_names)
         metadata.genres = data['genres']
         metadata.countries = data['countries']

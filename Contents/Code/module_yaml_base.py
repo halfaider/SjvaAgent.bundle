@@ -244,7 +244,7 @@ class ModuleYamlBase(AgentBase):
             value = self.get_media_list(data, field)
             if len(value) > 0:
                 for media in value:
-                    image_url = media.get('thumb') or media.get('url')
+                    image_url = media.get('url') or media.get('thumb')
                     if not image_url or image_url in valid_names:
                         continue
                     try:
@@ -255,7 +255,7 @@ class ModuleYamlBase(AgentBase):
                         elif image_url.startswith('https://cdn.discordapp.com/attachments'):
                             ddns = Prefs['server'].rstrip('/')
                             image_url = image_url.replace('https://cdn.discordapp.com', ddns)
-                        self.set_http_data(image_url, meta, valid_names, len(valid_names) + 1)
+                        self.set_http_data(image_url, meta, valid_names, preview=media.get('thumb'))
                     except Exception:
                         Log.Exception('')
             if is_primary:

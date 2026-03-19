@@ -225,10 +225,10 @@ class ModuleKtv(AgentBase):
             image_url = item.get('value') or item.get('thumb')
             aspect = item.get('aspect') or 'poster'
             container = poster_templates.get(aspect)
-            if not container or not image_url:
+            if container is None or not image_url:
                 continue
             try:
-                self.set_http_data(image_url, container, data_urls[aspect], len(data_urls[aspect]) + 1)
+                self.set_http_data(image_url, container, data_urls[aspect], preview=item.get('thumb'))
             except Exception as e:
                 Log.Exception(str(e))
 
@@ -333,10 +333,10 @@ class ModuleKtv(AgentBase):
                     info_json[code] = daum_episode_info
             return daum_episode_info
 
-        def set_episode_thumb(thumb_url, episode, valid_thumb_names):
+        def set_episode_thumb(thumb_url, episode, valid_thumb_names, preview=None):
             if not thumb_url or thumb_url in valid_thumb_names:
                 return
-            self.set_http_data(thumb_url, episode.thumbs, valid_thumb_names, sort_order=len(valid_thumb_names) + 1)
+            self.set_http_data(thumb_url, episode.thumbs, valid_thumb_names, preview=preview)
 
         valid_thumb_names = set()
         daum_episode_info = None
@@ -350,9 +350,9 @@ class ModuleKtv(AgentBase):
                     if not daum_episode_info:
                         continue
                     for thumb in sorted(daum_episode_info['thumb'], key=lambda k: k.get('score') or 0, reverse=True):
-                        set_episode_thumb(thumb.get('value') or thumb.get('thumb'), episode, valid_thumb_names)
+                        set_episode_thumb(thumb.get('value') or thumb.get('thumb'), episode, valid_thumb_names, thumb.get('thumb'))
                 else:
-                    set_episode_thumb(show_epi_info[site].get('value') or show_epi_info[site].get('thumb'), episode, valid_thumb_names)
+                    set_episode_thumb(show_epi_info[site].get('value') or show_epi_info[site].get('thumb'), episode, valid_thumb_names, show_epi_info[site].get('thumb'))
             except Exception:
                 Log.Exception('')
             if valid_thumb_names:
@@ -767,7 +767,7 @@ class ModuleKtv(AgentBase):
             for tmp in remote_metadata['extra_info']['themes']:
                 try:
                     if tmp not in metadata.themes:
-                        self.set_http_data(tmp, metadata.themes, data_urls['theme'], len(data_urls['theme']) + 1, False)
+                        self.set_http_data(tmp, metadata.themes, data_urls['theme'])
                 except Exception: pass
 
         # 테마2
@@ -786,7 +786,7 @@ class ModuleKtv(AgentBase):
             theme_url = 'https://tvthemes.plexapp.com/%s.mp3' % tvdb_id
             if theme_url not in metadata.themes:
                 try:
-                    self.set_http_data(theme_url, metadata.themes, data_urls['theme'], len(data_urls['theme']) + 1, False)
+                    self.set_http_data(theme_url, metadata.themes, data_urls['theme'])
                 except Exception: pass
 
     def set_roles(self, metadata, remote_metadata):
