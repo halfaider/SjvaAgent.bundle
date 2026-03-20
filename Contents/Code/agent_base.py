@@ -198,7 +198,7 @@ class AgentBase(object):
                 Log('RETRY : %s', retry)
                 return AgentBase.my_JSON_ObjectFromURL(url, timeout, retry=(retry-1))
             else:
-                Log('CRITICAL my_JSON_ObjectFromURL error')
+                Log.Error('CRITICAL my_JSON_ObjectFromURL error')
 
 
     def get_keyword_from_file(self, media):
@@ -735,13 +735,13 @@ class AgentBase(object):
                         valid_names.add(url)
             else:
                 Log.Warn("유효하지 않은 데이터: %s", target_url)
-        
+
         if preview:
             process(preview, Proxy.Preview)
         else:
             process(url, Proxy.Media)
 
-    
+
     def is_yaml_enabled(self, media):
         try:
             yaml_disabled = Prefs['yaml_disabled'] or ''
@@ -758,9 +758,11 @@ class AgentBase(object):
             except Exception:
                 pass
         try:
-            data = AgentBase.my_JSON_ObjectFromURL('http://127.0.0.1:32400/library/metadata/%s' % media.id)
-            section_id = str(data['MediaContainer']['librarySectionID'])
-            return section_id not in disabled_libraries
+            section_id = self.get_section_id(media.id)
+            if section_id:
+                Log.Debug("[%s] media section id: %s", media.id, section_id)
+                Log.Debug("[%s] yaml disabled libraries: %s", media.id, disabled_libraries)
+                return section_id not in disabled_libraries
         except Exception as e:
             Log.Exception(str(e))
         return True
@@ -796,7 +798,121 @@ class AgentBase(object):
                     Log.Exception("[%s] 삭제 실패: %s", media.id, target_path)
 
 
+    def get_section_id(self, media_id):
+        url = 'http://127.0.0.1:32400/library/metadata/%s' % media_id
+        try:
+            data = AgentBase.my_JSON_ObjectFromURL(url)
+            return data['MediaContainer']['librarySectionID']
+        except Exception as e:
+            Log.Error("[%s] Failed to get section id: %s", media_id, str(e))
 
+
+    def set_themes(self, metadata, remote_metadata, valid_names, tvdb_id=None):
+        # 테마
+        if 'themes' in remote_metadata.get('extra_info') or {}:
+            for tmp in remote_metadata['extra_info'].get('themes') or ():
+                try:
+                    if tmp not in valid_names:
+                        self.set_http_data(tmp, metadata.themes, valid_names)
+                except Exception: pass
+
+        if tvdb_id:
+            theme_url = 'https://tvthemes.plexapp.com/%s.mp3' % tvdb_id
+            if theme_url not in valid_names:
+                try:
+                    self.set_http_data(theme_url, metadata.themes, valid_names)
+                except Exception: pass
+
+
+    def set_roles(self, metadata, remote_metadata, role_types=('actor',)):
+        for role_type in role_types:
+            for item in remote_metadata.get(role_type) or ():
+                name = item.get('name') or item.get('name2') or item.get('name_original')
+                if name:
+                    actor = metadata.roles.new()
+                    actor.name = name
+                    actor.role = item.get('role') or '출연'
+                    actor.photo = item.get('thumb') or item.get('image')
+                #Log.Debug('%s - %s'% (actor.name, actor.photo))
+
+
+    def set_extras(self, metadata, remote_metadata):
+        for item in remote_metadata.get('extras') or ():
+            try:
+                mode = item.get('mode') or ''
+                content_url = item.get('content_url') or ''
+                content_type = item.get('content_type') or 'other'
+                extra_class = self.extra_map.get(content_type.lower())
+                if not extra_class or not mode or not content_url:
+                    continue
+                url = 'sjva://sjva.me/playvideo/%s|%s' % (mode, content_url)
+                metadata.extras.add(extra_class(
+                    url=url,
+                    title=self.change_html(item.get('title') or ""),
+                    originally_available_at=Datetime.ParseDate(item.get('premiered') or "1900-01-01").date(),
+                    thumb=item.get('thumb') or ''
+                ))
+            except Exception as e:
+                Log.Error(str(e))
+
+
+    def parse_guid(self, guid):
+        path = guid.split("?")[0].split("://")[-1]
+        parts = path.split("/")
+        show_id, season, episode = (parts + [None, None])[:3]
+        return {
+            'show': show_id,
+            'season': season,
+            'episode': episode,
+            'is_episode': bool(episode)
+        }
+
+
+    def convert_season_index(self, season_index):
+        try:
+            index = int(season_index)
+        except Exception:
+            index = 1
+        # 다섯 자리 이상은 1 시즌 취급 (202501)
+        if index > 9999:
+            index = 1
+        # 네 자리 이상은 사용자 정의 시즌
+        elif index > 999:
+            index = index
+        # 세 자리 이상은 재생 버전별 시즌
+        elif index > 99:
+            index = index % 100
+        return str(index)
+
+
+    def get_data_from_info_json(self, search_code, search_title, info_json = None, is_write_json = False):
+        meta_info = {}
+        if info_json and search_code in info_json:
+            # 방송중이라면 저장된 정보를 무시해야 새로운 에피를 갱신
+            if info_json[search_code]['status'] == 2:
+                meta_info = info_json[search_code]
+        if not meta_info:
+            meta_info = self.send_info(self.module_name, search_code, title=search_title)
+            if meta_info and is_write_json:
+                info_json[search_code] = meta_info
+        return meta_info
+
+
+    def reset_episode_metadata(self, episode):
+        episode.title = None
+        episode.summary = None
+        episode.originally_available_at = None
+        episode.rating = None
+        episode.duration = None
+        episode.content_rating = None
+        episode.content_rating_age = None
+        episode.writers.clear()
+        episode.directors.clear()
+        episode.producers.clear()
+        episode.guest_stars.clear()
+        episode.thumbs.validate_keys([])
+        episode.absolute_index = None
+        return episode
 
 
 class PutRequest(urllib2.Request):
@@ -805,3 +921,10 @@ class PutRequest(urllib2.Request):
 
     def get_method(self, *args, **kwargs):
         return 'PUT'
+
+
+def get_sort_key(x):
+    try:
+        return int(x)
+    except Exception:
+        return x
