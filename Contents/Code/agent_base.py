@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, json, urllib, re, unicodedata, time, urllib2, io, platform
+import os, json, urllib, re, unicodedata, time, urllib2, io
 from io import open
 from functools import wraps
 import yaml
@@ -213,47 +213,46 @@ class AgentBase(object):
     def get_token(self):
         # 'Critical', 'Debug', 'Error', 'Exception', 'Info', 'Stack', 'Warn'
         try:
+            if Core.sandbox.context:
+                token = getattr(Core.sandbox.context, 'token', None)
+                if token:
+                    return token
+        except Exception:
+            pass
+        try:
             token = Prefs['plex_token']
-            if isinstance(token, str):
+            if isinstance(token, (str, unicode)):
                 token = token.strip()
                 if token:
                     return token
+        except Exception:
+            pass
 
-            if self.token:
-                return self.token
+        if self.token:
+            return self.token
 
-            system = platform.system()
-            Log.Debug('현재 운영체제: %s', system)
-            if system == 'Windows':
+        try:
+            current_os = Platform.OS
+            Log.Debug('현재 운영체제: %s', current_os)
+            if current_os == 'Windows':
                 Log.Warn('Windows 환경에서는 에이전트 설정에 토큰을 직접 입력해 주세요.')
                 return
 
-            try:
-                current_path = re.sub(r'^\\\\\?\\', '', os.getcwd())
-                pms_root = current_path
-                for _ in range(4):
-                    pms_root = os.path.dirname(pms_root)
-                    pref_filepath = os.path.join(pms_root, 'Preferences.xml')
-                    Log.Debug('경로 검사: %s', pref_filepath)
-                    if os.path.exists(pref_filepath):
-                        Log.Info('파일을 찾았습니다: %s', pref_filepath)
-                        with io.open(pref_filepath, 'r', encoding='utf8') as f:
-                            text = f.read()
-                            if text:
-                                prefs_xml = XML.ElementFromString(text)
-                                token = prefs_xml.get('PlexOnlineToken')
-                                if token and isinstance(token, str):
-                                    self.token = token.strip()
-                                    Log.Info('Preferences.xml에서 토큰을 가져왔습니다.')
-                                    return self.token
-                        break
-                else:
-                    Log.Warn('Preferences.xml 탐색 실패')
-            except Exception as e:
-                Log.Warn('Preferences.xml 탐색 중 오류 발생: %s', str(e))
-            Log.Error('토큰을 가져오지 못 했습니다.')
+            pms_root = Core.app_support_path
+            pref_filepath = Core.storage.join_path(pms_root, 'Preferences.xml')
+            if Core.storage.file_exists(pref_filepath):
+                Log('파일을 찾았습니다: %s', pref_filepath)
+                file_data = Core.storage.load(pref_filepath)
+                if file_data:
+                    prefs_xml = XML.ElementFromString(file_data)
+                    token = prefs_xml.get('PlexOnlineToken')
+                    if token:
+                        self.token = token.strip()
+                        Log('Preferences.xml에서 토큰을 가져왔습니다.')
+                        return self.token
         except Exception:
             Log.Exception('토큰 확인 중 오류가 발생했습니다.')
+        Log.Error('토큰을 가져오지 못 했습니다.')
 
     def get_json_filepath(self, media):
         try:
@@ -771,31 +770,41 @@ class AgentBase(object):
     def remove_metadata(self, metadata, media, metadata_type="TV Shows"):
         """
         2026-03-19 halfaider
-        업데이트 전 _stored 폴더를 삭제
+        업데이트 전 번들 폴더를 삭제
         """
-        Log("[%s] contributors: %s", media.id, metadata.contributors)
         try:
-            shoud_remove_metadata = Prefs['remove_metadata_on_update']
+            if not Prefs['remove_metadata_on_update']:
+                return
         except Exception:
-            shoud_remove_metadata = False
-        if shoud_remove_metadata:
-            delimiter = "Library/Application Support/Plex Media Server"
-            parts = Core.storage.data_path.split(delimiter)
+            return
+
+        try:
+            pms_root = Core.app_support_path
             uid_hash = Core.data.hashing.sha1(metadata.guid)
-            bundle_path = Core.storage.join_path(parts[0], delimiter, "Metadata", metadata_type, uid_hash[0], uid_hash[1:] + '.bundle')
+            bundle_path = Core.storage.join_path(pms_root, "Metadata", metadata_type, uid_hash[0], uid_hash[1:] + '.bundle')
+            if not Core.storage.dir_exists(bundle_path):
+                Log("[%s] 삭제할 번들 폴더가 없습니다: %s", media.id, bundle_path)
+                return
+
+            to_be_removed = []
             upload_path = Core.storage.join_path(bundle_path, "Uploads")
+            to_be_removed.append(upload_path)
+
             content_path = Core.storage.join_path(bundle_path, "Contents")
-            to_be_deleted = [upload_path]
-            for contributor in metadata.contributors:
-                contributor_path = Core.storage.join_path(content_path, contributor)
-                to_be_deleted.append(contributor_path)
-            for target_path in to_be_deleted:
+            if metadata.contributors:
+                for contributor in metadata.contributors:
+                    contributor_path = Core.storage.join_path(content_path, contributor)
+                    to_be_removed.append(contributor_path)
+
+            for target_path in to_be_removed:
                 try:
                     if Core.storage.dir_exists(target_path):
                         Core.storage.remove_tree(target_path)
-                        Log("[%s] Removed folder: %s", media.id, target_path)
+                        Log("[%s] 삭제됨: %s", media.id, target_path)
                 except Exception as e:
                     Log.Exception("[%s] 삭제 실패: %s", media.id, target_path)
+        except Exception as e:
+            Log.Exception("[%s] 번들 폴더 삭제 실패: %s", media.id, str(e))
 
 
     def get_section_id(self, media_id):

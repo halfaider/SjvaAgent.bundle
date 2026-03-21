@@ -296,6 +296,9 @@ class ModuleFtv(AgentBase):
                 url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s&X-Plex-Token=%s' % (section_id, media.seasons[season_no].id, urllib.quote(season_title.encode('utf8')), urllib.quote(metadata_season.summary.encode('utf8')), token)
                 request = PutRequest(url)
                 response = urllib2.urlopen(request)
+                status_code = response.getcode()
+                if not status_code == 200:
+                    Log("[%s] 시즌 정보 업데이트 실패: status %s", media.id, status_code)
             except Exception as e:
                 Log.Exception(str(e))
 

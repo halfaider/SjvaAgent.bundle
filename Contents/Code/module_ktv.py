@@ -408,6 +408,7 @@ class ModuleKtv(AgentBase):
                         guest_star = episode.guest_stars.new()
                         guest_star.name = name
                         guest_star.photo = guest.get('image') or ''
+                        guest_star.role = '본인'
             except Exception:
                 Log.Exception('')
             if episode.originally_available_at and episode.title and episode.summary:
@@ -708,7 +709,10 @@ class ModuleKtv(AgentBase):
                                 url = url + "&summary.value=%s" % urllib.quote(metadata_season.summary.encode('utf8'))
                             if season_title or metadata_season.summary:
                                 request = PutRequest(url)
-                                urllib2.urlopen(request)
+                                response = urllib2.urlopen(request)
+                                status_code = response.getcode()
+                                if not status_code == 200:
+                                    Log("[%s] 시즌 정보 업데이트 실패: status %s", media.id, status_code)
                         except Exception as e:
                             Log.Exception(str(e))
                 except Exception:
