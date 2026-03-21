@@ -882,8 +882,8 @@ class AgentBase(object):
             index = int(season_index)
         except Exception:
             index = 1
-        # 다섯 자리 이상은 1 시즌 취급 (202501)
-        if index > 9999:
+        # 여섯 자리 이상은 1 시즌 취급 (202501)
+        if index > 99999:
             index = 1
         # 네 자리 이상은 사용자 정의 시즌
         elif index > 999:
