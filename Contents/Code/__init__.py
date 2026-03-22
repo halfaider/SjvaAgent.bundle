@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 import functools
 import subprocess
 import threading
@@ -97,7 +98,8 @@ def convert_webp(webp_data):
             Log.Debug(mode)
             return out
         else:
-            Log.Error("%s 오류: %s", mode, err.decode('utf-8', 'ignore') if isinstance(err, str) else err)
+            error_message = err.decode('utf-8', 'ignore') if err else "No error message"
+            Log.Error("%s 오류: %s", mode, error_message)
     except Exception as e:
         Log.Exception("%s 실패: %s", mode, str(e))
     finally:
@@ -110,7 +112,8 @@ def convert_webp(webp_data):
 def is_webp(data):
     if len(data) < 16:
         return False
-    if data[0:4] == b'RIFF' or  data[8:12] == b'WEBP':
+    # .avi. .wav 등 도 RIFF
+    if data[0:4] == b'RIFF' and data[8:12] == b'WEBP':
         return True
     return False
 
@@ -152,12 +155,13 @@ def proxy_wrapper(func):
 
 
 def shorten_plex_path(full_path):
-    anchor = "Library/Application Support/Plex Media Server"
     norm_path = os.path.normpath(full_path)
-    norm_anchor = os.path.normpath(anchor)
-    idx = norm_path.find(norm_anchor)
+    anchor = os.path.join("Library", "Application Support", "Plex Media Server")
+    lower_path = norm_path.lower()
+    lower_anchor = anchor.lower()
+    idx = lower_path.find(lower_anchor)
     if idx != -1:
-        after_anchor_idx = idx + len(norm_anchor)
+        after_anchor_idx = idx + len(lower_anchor)
         remaining = norm_path[after_anchor_idx:]
         remaining = remaining.lstrip(os.sep)
         return os.path.join('...', remaining)

@@ -2,6 +2,15 @@
 import os, re, unicodedata
 from .agent_base import AgentBase
 
+Log = Log # type: Framework.api.logkit.LogKit
+Regex = Regex # type: Framework.api.utilkit.RegexKit
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+HTTP = HTTP # type: Framework.api.networkkit.HTTPKit
+Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+TrailerObject = TrailerObject # type: Framework.modelling.objects.ModelInterfaceObjectMetaclass
+
+
 class ModuleJavCensoredBase(AgentBase):
     def get_search_keyword(self, media, manual, from_file=False):
         try:

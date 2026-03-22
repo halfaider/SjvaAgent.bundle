@@ -3,6 +3,11 @@ import os
 from collections import defaultdict
 from .agent_base import AgentBase
 
+Log = Log # type: Framework.api.logkit.LogKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
+
+
 class ModuleLyric(AgentBase):
     module_name = 'lyric'
 

@@ -3,6 +3,11 @@ import os, urllib, re, unicodedata
 from .agent_base import AgentBase
 from collections import defaultdict
 
+Log = Log # type: Framework.api.logkit.LogKit
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+
 VARIOUS_ARTISTS_POSTER = 'https://music.plex.tv/pixogs/various_artists_poster.jpg'
 
 

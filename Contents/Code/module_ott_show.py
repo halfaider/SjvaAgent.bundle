@@ -2,6 +2,11 @@
 import json
 from .agent_base import AgentBase
 
+Log = Log # type: Framework.api.logkit.LogKit
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+FeaturetteObject = FeaturetteObject # type: Framework.modelling.objects.ModelInterfaceObjectMetaclass
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+
 
 class ModuleOttShow(AgentBase):
     module_name = 'ott_show'

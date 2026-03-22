@@ -4,6 +4,15 @@ from io import open
 from functools import wraps
 import yaml
 
+Core = Core # Framework.core.FrameworkCore
+Log = Log # type: Framework.api.logkit.LogKit
+Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
+HTTP = HTTP # type: Framework.api.networkkit.HTTPKit
+Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
+XML = XML # type: Framework.api.parsekit.XMLKit
+JSON = JSON # type: Framework.api.parsekit.JSONKit
+Platform = Platform # type: Framework.api.runtimekit.PlatformKit
+Datetime = Datetime # type: Framework.api.utilkit.DatetimeKit
 
 """
 class MetadataSearchResult(XMLObject):
@@ -43,7 +52,7 @@ class AgentBase(object):
     }
 
     extra_map = {
-        'trailer' : TrailerObject,
+        'trailer' : TrailerObject, # type: Framework.modelling.objects.ModelInterfaceObjectMetaclass
         'deletedscene' : DeletedSceneObject,
         'behindthescenes' : BehindTheScenesObject,
         'interview' : InterviewObject,

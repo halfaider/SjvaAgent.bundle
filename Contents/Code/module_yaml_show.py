@@ -3,9 +3,17 @@ import os, urllib, unicodedata, time, urllib2
 from .agent_base import PutRequest
 from .module_yaml_base import ModuleYamlBase
 
+Log = Log # type: Framework.api.logkit.LogKit
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+parallelize = parallelize # Framework.api.threadkit._parallelize_decorator
+task = task # Framework.api.threadkit._task_decorator
+JSON = JSON # type: Framework.api.parsekit.JSONKit
+
+
 class ModuleYamlShow(ModuleYamlBase):
     module_name = 'yaml_show'
-    
+
     def search(self, results, media, lang, manual, **kwargs):
         try:
             filepath = self.get_yaml_filepath(media, 'show')
@@ -24,30 +32,30 @@ class ModuleYamlShow(ModuleYamlBase):
             if not code.startswith('YS'):
                 code = 'YS%s' % code
             meta = MetadataSearchResult(
-                id=code, 
-                name=self.get(data, 'title', u'제목 - %s' % timestamp), 
-                year=self.get(data, 'year', ''), 
-                score=100, 
-                thumb=thumb, 
+                id=code,
+                name=self.get(data, 'title', u'제목 - %s' % timestamp),
+                year=self.get(data, 'year', ''),
+                score=100,
+                thumb=thumb,
                 lang=lang
             )
             summary = self.get(data, 'summary', '')
             meta.summary = summary
             meta.type = "movie"
-            results.Append(meta) 
+            results.Append(meta)
             return True
-        except Exception as exception: 
+        except Exception as exception:
             Log.Exception(str(exception))
         return False
 
 
-    
+
 
 
 
     # 다른 모듈에서 처리한 이후 있는 값들만 덮어씌움.
     def update(self, metadata, media, lang, is_primary=True):
-        try: 
+        try:
             filepath_list = self.get_yaml_filepath(media, 'show')
             Log('YAML show : %s', filepath_list)
             # Y 면 기본적으로 어느정도 세팅한다... YD만 하지 말고
@@ -73,7 +81,7 @@ class ModuleYamlShow(ModuleYamlBase):
             try:
                 if filepath_list['show'] is not None:
                     data = self.yaml_load(filepath_list['show'])
-            except Exception as exception: 
+            except Exception as exception:
                 Log.Exception(str(exception))
             finally:
                 if 'seasons' not in data:
@@ -88,14 +96,14 @@ class ModuleYamlShow(ModuleYamlBase):
                         pass
                 data['seasons'] = to_dict
 
-            
+
             for season_yamlpath in filepath_list['seasons']:
                 try:
                     tmp = self.yaml_load(season_yamlpath)
                     #data['seasons'].append(tmp)
                     if 'index' in tmp:
                         data['seasons'][str(tmp['index'])] = tmp
-                except Exception as exception: 
+                except Exception as exception:
                     Log.Exception(str(exception))
 
             # episodes to dict
@@ -120,20 +128,20 @@ class ModuleYamlShow(ModuleYamlBase):
                 try:
                     if originally_available_at:
                         metadata.originally_available_at = Datetime.ParseDate(originally_available_at).date()
-                except Exception as e: 
+                except Exception as e:
                     Log.Error(str(e))
             else:
                 self.set_data(metadata, data, 'title', is_primary)
                 self.set_data(metadata, data, 'original_title', is_primary)
                 self.set_data(metadata, data, 'title_sort', is_primary)
                 self.set_data(metadata, data, 'originally_available_at', is_primary)
-                            
+
 
             self.set_data(metadata, data, 'studio', is_primary)
             self.set_data(metadata, data, 'content_rating', is_primary)
             self.set_data(metadata, data, 'summary', is_primary)
             self.set_data(metadata, data, 'rating', is_primary)
-            
+
             self.set_data_list(metadata, data, 'genres', is_primary)
             self.set_data_list(metadata, data, 'collections', is_primary)
 
@@ -143,7 +151,7 @@ class ModuleYamlShow(ModuleYamlBase):
             self.set_data_media(metadata, data, 'art', is_primary)
             self.set_data_media(metadata, data, 'themes', is_primary)
             self.set_data_extras(metadata, data, 'extras', is_primary)
-                
+
             index_list = [index for index in media.seasons]
             index_list = sorted(index_list)
 
@@ -155,7 +163,7 @@ class ModuleYamlShow(ModuleYamlBase):
                     metadata_season = metadata.seasons[media_season_index]
                     if str(media_season_index) not in data['seasons']:
                         continue
-                    
+
                     @task
                     def UpdateSeason(metadata=metadata, data=data, media=media, metadata_season=metadata_season, media_season_index=media_season_index, is_primary=is_primary):
                         data_season = data['seasons'][str(media_season_index)]
@@ -163,7 +171,7 @@ class ModuleYamlShow(ModuleYamlBase):
                         if value is not None:
                             #metadata_season.title = value
                             self.set_season_info_by_web(media, media_season_index,  title=value)
-                        
+
                         value = self.get(data_season, 'summary', None)
                         if value is not None:
                             #metadata_season.summary = value
@@ -176,7 +184,7 @@ class ModuleYamlShow(ModuleYamlBase):
 
                         for media_episode_index in media.seasons[media_season_index].episodes:
                             metadata_episode = metadata.seasons[media_season_index].episodes[media_episode_index]
-                                                
+
                             if 'episodes' not in data_season or str(media_episode_index) not in data_season['episodes']:
                                 continue
 
@@ -191,7 +199,7 @@ class ModuleYamlShow(ModuleYamlBase):
                             self.set_data_person(metadata_episode, data, 'directors', is_primary)
                             self.set_data_extras(metadata_episode, data_episode, 'extras', is_primary)
                             self.set_data_media(metadata_episode, data_episode, 'thumbs', is_primary)
-        except Exception as e: 
+        except Exception as e:
             Log.Exception('')
 
 

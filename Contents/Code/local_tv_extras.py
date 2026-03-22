@@ -1,7 +1,13 @@
 #local media assets agent
 import os, string, unicodedata
 
+Log = Log # type: Framework.api.logkit.LogKit
+Platform = Platform # type: Framework.api.runtimekit.PlatformKit
+Regex = Regex # type: Framework.api.utilkit.RegexKit
+Util = Util # type: Framework.api.utilkit.UtilKit
+
 extras_list = []
+
 
 def FindShowDir(dirs):
   final_dirs = {}

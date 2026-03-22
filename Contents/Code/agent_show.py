@@ -4,6 +4,13 @@ from .agent_base import AgentBase
 from .module_ktv import ModuleKtv
 from .module_ftv import ModuleFtv
 from .module_yaml_show import ModuleYamlShow
+from .local_tv_extras import update as local_tv_extras_update
+
+Locale = Locale # type: Framework.api.localekit.LocaleKit
+Log = Log # type: Framework.api.logkit.LogKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+Agent = Agent # type: Framework.api.agentkit.AgentKit
+
 
 class AgentShow(Agent.TV_Shows):
     name = "SJVA 설정"
@@ -42,8 +49,7 @@ class AgentShow(Agent.TV_Shows):
         # 파일로 된 부가영상이 먼저 나오게 순서 변경
         # Y로 호출할 뿐 모듈은 상관 없음. static function
         if self.instance_list['Y'].is_show_extra(media):
-            import local_tv_extras
-            local_tv_extras.update(metadata, media)
+            local_tv_extras_update(metadata, media)
 
         self.instance_list[metadata.id[0]].update(metadata, media, lang)
         if metadata.id[0] != 'Y' and self.instance_list[metadata.id[0]].is_yaml_enabled(media):

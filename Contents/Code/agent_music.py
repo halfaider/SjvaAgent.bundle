@@ -6,6 +6,12 @@ from .module_audiobook import ModuleAudiobookArtist, ModuleAudiobookAlbum
 from .module_yaml_music import ModuleYamlArtist, ModuleYamlAlbum
 from .module_lyric import ModuleLyric
 
+Locale = Locale # type: Framework.api.localekit.LocaleKit
+Log = Log # type: Framework.api.logkit.LogKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+Agent = Agent # type: Framework.api.agentkit.AgentKit
+
+
 class AgentArtist(Agent.Artist):
     name = "SJVA 설정"
     languages = [Locale.Language.Korean]

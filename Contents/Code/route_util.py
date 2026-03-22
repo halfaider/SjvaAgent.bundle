@@ -8,14 +8,20 @@ import urllib
 # /:/plugins/com.plexapp.agents.sjva_agent/function/version?X-Plex-Token=%s' % (server_url, server_token)
 from . import d
 
+JSON = JSON # type: Framework.api.parsekit.JSONKit
+Log = Log # type: Framework.api.logkit.LogKit
+Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
+Redirect = Redirect # type: Framework.objects.Redirect
+route = route # type: Framework.handlers.base.BaseHandler.route
 
-@route('/version') 
+
+@route('/version')
 def version():
     from .version import VERSION
     return VERSION
 
 
-@route('/kakao') 
+@route('/kakao')
 def kakao(content_id):
     #content_id = '414068276'
     try:
@@ -24,10 +30,10 @@ def kakao(content_id):
         video_url = data['videoLocation']['url']
         Log('Kakao : %s', video_url)
         return Redirect(video_url)
-    except Exception as e: 
+    except Exception as e:
         Log.Exception(str(e))
 
-@route('/wavve') 
+@route('/wavve')
 def wavve(sjva_url):
     try:
         data = JSON.ObjectFromURL(sjva_url)
@@ -35,14 +41,14 @@ def wavve(sjva_url):
         data = JSON.ObjectFromURL(url)
         video_url = data['playurl']
         return Redirect(video_url)
-    except Exception as e: 
+    except Exception as e:
         Log.Exception(str(e))
 
 
 
 
 
-@route('/get_lyric') 
+@route('/get_lyric')
 def get_lyric(mode, filename, artist, track):
     Log('mode : %s  ' % (mode))
     Log('artist : %s  artist : %s' % (artist, track))
@@ -53,7 +59,7 @@ def get_lyric(mode, filename, artist, track):
             data = JSON.ObjectFromURL(url, timeout=5000)
             Log(data)
             lyric = data['data'] if data['ret'] == 'success' else data['log']
-        except Exception as e: 
+        except Exception as e:
             Log.Exception(str(e))
             lyric = str(traceback.format_exc())
     Log(lyric)
@@ -61,7 +67,7 @@ def get_lyric(mode, filename, artist, track):
 
 
 
-@route('/get_lyric2') 
+@route('/get_lyric2')
 def get_lyric2(mode, track_key):
     Log('mode : %s  ' % (mode))
     Log('track_key : %s' % (track_key))
@@ -78,7 +84,7 @@ def get_lyric2(mode, track_key):
             data = JSON.ObjectFromURL(url, timeout=5000)
             #Log(d(data))
             lyric = data['data'] if data['ret'] == 'success' else data['log']
-        except Exception as e: 
+        except Exception as e:
             Log.Exception(str(e))
             lyric = str(traceback.format_exc())
     #Log(lyric)
@@ -86,14 +92,14 @@ def get_lyric2(mode, track_key):
 
 
 
-@route('/music_normal_lyric') 
+@route('/music_normal_lyric')
 def music_normal_lyric(mode, song_id, track_key):
     Log('mode : %s  ' % (mode))
     Log('track_key : %s' % (track_key))
     Log('song_id : %s' % (song_id))
     lyric = ''
 
-    from .module_music_normal import ModuleMusicNormalAlbum 
+    from .module_music_normal import ModuleMusicNormalAlbum
     mod = ModuleMusicNormalAlbum()
     module_prefs = mod.get_module_prefs('music_normal')
     ddns = Prefs['server'] if module_prefs['server'] == '' else module_prefs['server']
@@ -112,20 +118,20 @@ def music_normal_lyric(mode, song_id, track_key):
             data = JSON.ObjectFromURL(url, timeout=5000)
             #Log(d(data))
             lyric = data['lyric'] if data['ret'] == 'success' else data['log']
-        except Exception as e: 
+        except Exception as e:
             Log.Exception(str(e))
             lyric = str(traceback.format_exc())
     return lyric
 
-@route('/music_normal_lyric') 
+@route('/music_normal_lyric')
 def yaml_lyric(track_key, lyric_index, album_key, track_code, disc_index, track_index):
     lyric = ''
     try:
-        from .module_yaml_music import ModuleYamlAlbum 
+        from .module_yaml_music import ModuleYamlAlbum
         mod = ModuleYamlAlbum()
         data = mod.yaml_load(mod.get_yaml_filepath(album_key, 'album'))
         lyric = data['tracks'][str(disc_index)][str(track_index)]['lyrics'][int(lyric_index)]['data']
-    except Exception as e: 
+    except Exception as e:
         Log.Exception(str(e))
         lyric = str(traceback.format_exc())
     return lyric
@@ -135,7 +141,7 @@ def d(data):
     return json.dumps(data, indent=4, ensure_ascii=False)
 
 
-@route('/get_folderpath') 
+@route('/get_folderpath')
 def get_folderpath(key):
     Log('key : %s  ' % key)
     try:
@@ -145,8 +151,8 @@ def get_folderpath(key):
         Log(d(data))
         content_type = data['MediaContainer']['Metadata'][0]['type']
         ret = {
-            'title':data['MediaContainer']['Metadata'][0]['title'], 
-            'section_title':data['MediaContainer']['librarySectionTitle'], 
+            'title':data['MediaContainer']['Metadata'][0]['title'],
+            'section_title':data['MediaContainer']['librarySectionTitle'],
             'section_id':data['MediaContainer']['librarySectionID']
         }
 
@@ -186,7 +192,7 @@ def get_folderpath(key):
             else:
                 ret['ret'] = 'show_error_not_exist_location'
         Log('get_folderpath 위치 : %s' % d(ret))
-    except Exception as e: 
+    except Exception as e:
         Log.Exception(str(e))
         ret = {'ret':'exception', 'log':str(e)}
     return (ret)
@@ -223,10 +229,10 @@ def attach(url):
                     new.append("{prefix}/{line}".format(prefix=prefix,line=line))
                 else:
                     new.append("{prefix}/{line}?{attach}".format(prefix=prefix,line=line,attach=attach))
-        
+
         data = '\n'.join(new)
         return data
-    except Exception as e: 
+    except Exception as e:
         Log.Exception(str(e))
 
 """

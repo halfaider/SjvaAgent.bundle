@@ -5,9 +5,13 @@ import unicodedata
 
 from .agent_base import AgentBase
 
+Log = Log # type: Framework.api.logkit.LogKit
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
+
 
 class ModuleYamlBase(AgentBase):
-    
+
     def get_yaml_filepath(self, media, content_type):
         try:
             metadata_key = media if type(media) == type('') else media.id
@@ -79,7 +83,7 @@ class ModuleYamlBase(AgentBase):
                 filename = data['MediaContainer']['Metadata'][0]['Media'][0]['Part'][0]['file']
                 parent = os.path.split(os.path.dirname(filename))[1]
                 match = re.match('CD(?P<disc>\d+)', parent, re.IGNORECASE)
-                    
+
                 if match:
                     album_root = os.path.dirname(os.path.dirname(filename))
                 else:
@@ -109,17 +113,17 @@ class ModuleYamlBase(AgentBase):
 
                 if os.path.exists(yaml_filepath):
                     return yaml_filepath
-                
-        except Exception as e: 
+
+        except Exception as e:
             Log.Exception(str(e))
 
-    
+
     def get(self, data, field, default):
         ret = data.get(field, None)
         if ret is None or ret == '':
             ret = default
         return ret
-    
+
     def get_bool(self, data, field, default):
         ret = data.get(field, None)
         if ret is None or ret == '':
@@ -129,7 +133,7 @@ class ModuleYamlBase(AgentBase):
         elif ret.lower() in ['false']:
             return False
         return ret
-    
+
     def get_list(self, data, field):
         ret = data.get(field, None)
         if ret is None:
@@ -138,7 +142,7 @@ class ModuleYamlBase(AgentBase):
             if type(ret) != type([]):
                 ret = [x.strip() for x in ret.split(',')]
         return ret
-    
+
     def get_person_list(self, data, field):
         ret = data.get(field, None)
         if ret is None:
@@ -167,7 +171,7 @@ class ModuleYamlBase(AgentBase):
                         if insert_index > -1:
                             tmp[insert_index]['url'] = '%s,%s' % (tmp[insert_index]['url'], value)
                 ret = tmp
-        return ret 
+        return ret
 
     # 포인터가 아니다. 변수의 값이 넘어와버린다
     # setattr로 클래스 변수 값을 셋한다.
@@ -194,7 +198,7 @@ class ModuleYamlBase(AgentBase):
                 setattr(meta, field, value)
             elif is_primary:
                 setattr(meta, field, None)
-        except Exception as exception: 
+        except Exception as exception:
             Log.Exception(str(exception))
 
 
@@ -209,7 +213,7 @@ class ModuleYamlBase(AgentBase):
             elif is_primary:
                 meta.clear()
 
-        except Exception as exception: 
+        except Exception as exception:
             Log.Exception(str(exception))
 
     def set_data_person(self, meta, data, field, is_primary):
@@ -234,7 +238,7 @@ class ModuleYamlBase(AgentBase):
             elif is_primary:
                 meta.clear()
 
-        except Exception as exception: 
+        except Exception as exception:
             Log.Exception(str(exception))
 
     def set_data_media(self, meta, data, field, is_primary):
@@ -280,8 +284,8 @@ class ModuleYamlBase(AgentBase):
                     r.text = self.get(review, 'text', None)
             elif is_primary:
                 meta.clear()
-          
-        except Exception as exception: 
+
+        except Exception as exception:
             Log.Exception(str(exception))
 
     def set_data_extras(self, meta, data, field, is_primary):
@@ -297,7 +301,7 @@ class ModuleYamlBase(AgentBase):
                     url = 'sjva://sjva.me/playvideo/%s|%s' % (mode, extra_url)
                     meta.add(
                         extra_class(
-                            url=url, 
+                            url=url,
                             title=self.change_html(extra.get('title', '')),
                             originally_available_at = Datetime.ParseDate(self.get(extra, 'originally_available_at', '1900-12-31')).date(),
                             thumb=self.get(extra, 'thumb', '')
@@ -307,6 +311,6 @@ class ModuleYamlBase(AgentBase):
                 #Log(meta)
                 #meta.clear()
                 pass
-        except Exception as exception: 
+        except Exception as exception:
             Log.Exception(str(exception))
 

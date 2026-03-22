@@ -1,6 +1,11 @@
 # -*- coding: utf-8 -*-
 import os, unicodedata, urllib, re, time
 from .agent_base import AgentBase
+
+Log = Log # type: Framework.api.logkit.LogKit
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+
 VARIOUS_ARTISTS_POSTER = 'https://music.plex.tv/pixogs/various_artists_poster.jpg'
 
 # 정상 : BN코드A / BN코드

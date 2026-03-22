@@ -2,6 +2,13 @@
 import re, unicodedata, random, time
 from .agent_base import AgentBase
 
+Log = Log # type: Framework.api.logkit.LogKit
+Regex = Regex # type: Framework.api.utilkit.RegexKit
+Datetime = Datetime # Framework.api.utilkit.DatetimeKit
+MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+FeaturetteObject = FeaturetteObject # type: Framework.modelling.objects.ModelInterfaceObjectMetaclass
+
+
 class ModuleMovie(AgentBase):
     module_name = 'movie'
 

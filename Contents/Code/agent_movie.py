@@ -5,6 +5,11 @@ from .module_ott_show import ModuleOttShow
 from .module_movie import ModuleMovie
 from .module_yaml_movie import ModuleYamlMovie
 
+Log = Log # type: Framework.api.logkit.LogKit
+Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
+Locale = Locale # type: Framework.api.localekit.LocaleKit
+Agent = Agent # type: Framework.api.agentkit.AgentKit
+
 
 class AgentMovie(Agent.Movies):
     name = "SJVA 설정"
