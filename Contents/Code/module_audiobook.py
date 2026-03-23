@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-import os, unicodedata, urllib, re, time
+import os, unicodedata, re, time
 from .agent_base import AgentBase
 
 Log = Log # type: Framework.api.logkit.LogKit
 Datetime = Datetime # Framework.api.utilkit.DatetimeKit
 MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+String = String # type: Framework.api.utilkit.StringKit
 
 VARIOUS_ARTISTS_POSTER = 'https://music.plex.tv/pixogs/various_artists_poster.jpg'
 
@@ -16,7 +17,7 @@ class ModuleAudiobookArtist(AgentBase):
     def search(self, results, media, lang, manual, **kwargs):
         try:
             if media.artist.startswith('Various Artists_'):
-                results.Append(MetadataSearchResult(id='BA%s' % urllib.quote(media.artist.replace('Various Artists_', '')), name= '[Various Artists]', thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
+                results.Append(MetadataSearchResult(id='BA%s' % String.Quote(media.artist.replace('Various Artists_', '')), name= '[Various Artists]', thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
                 return
 
             if self.is_read_json(media):
@@ -46,7 +47,7 @@ class ModuleAudiobookArtist(AgentBase):
             Log('검색어 : %s', keyword)
             data = self.send_search(self.module_name, keyword, manual)
             if data == None:
-                results.Append(MetadataSearchResult(id='BE%s' % urllib.quote(media.artist), name= media.artist, thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
+                results.Append(MetadataSearchResult(id='BE%s' % String.Quote(media.artist), name= media.artist, thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
                 return
 
             for item in data:
@@ -67,7 +68,7 @@ class ModuleAudiobookArtist(AgentBase):
             valid_names = set()
             code = metadata.id
             if code.startswith('BA') or code.startswith('BE'):
-                metadata.title = '[Various Artists]' if code.startswith('BA') else urllib.unquote(code[2:])
+                metadata.title = '[Various Artists]' if code.startswith('BA') else String.Unquote(code[2:])
                 metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
                 self.set_http_data(VARIOUS_ARTISTS_POSTER, metadata.posters, valid_names)
                 metadata.posters.validate_keys(valid_names)
@@ -128,7 +129,7 @@ class ModuleAudiobookAlbum(AgentBase):
             Log('artist_code: %s', artist_code)
             Log('artist_name: %s', artist_name)
             if artist_code != None and artist_code.startswith('BA') and manual == False:
-                meta = MetadataSearchResult(id='BB' + artist_code[2:], name=urllib.unquote(artist_code[2:]), year='', score=100, thumb="", lang=lang)
+                meta = MetadataSearchResult(id='BB' + artist_code[2:], name=String.Unquote(artist_code[2:]), year='', score=100, thumb="", lang=lang)
                 results.Append(meta)
                 return
 
@@ -190,7 +191,7 @@ class ModuleAudiobookAlbum(AgentBase):
             data = None
             code = metadata.id
             if code.startswith('BB') or code.startswith('BD'):
-                metadata.title = urllib.unquote(code[2:]) if code.startswith('BB') else media.title
+                metadata.title = String.Unquote(code[2:]) if code.startswith('BB') else media.title
                 metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
                 valid_names = set()
                 self.set_http_data(VARIOUS_ARTISTS_POSTER, metadata.posters, valid_names)

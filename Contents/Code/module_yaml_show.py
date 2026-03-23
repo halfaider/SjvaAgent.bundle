@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, urllib, unicodedata, time, urllib2
+import os, unicodedata, time, urllib2
 from .agent_base import PutRequest
 from .module_yaml_base import ModuleYamlBase
 
@@ -9,6 +9,7 @@ MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSe
 parallelize = parallelize # Framework.api.threadkit._parallelize_decorator
 task = task # Framework.api.threadkit._task_decorator
 JSON = JSON # type: Framework.api.parsekit.JSONKit
+String = String # type: Framework.api.utilkit.StringKit
 
 
 class ModuleYamlShow(ModuleYamlBase):
@@ -216,9 +217,9 @@ class ModuleYamlShow(ModuleYamlBase):
 
         url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&X-Plex-Token=%s' % (section_id, media_season_id, token)
         if title is not None:
-            url = '%s&title.value=%s' % (url, urllib.quote(title.encode('utf8')))
+            url = '%s&title.value=%s' % (url, String.Quote(title.encode('utf8')))
         if summary is not None:
-            url = '%s&summary.value=%s' % (url, urllib.quote(summary.encode('utf8')))
+            url = '%s&summary.value=%s' % (url, String.Quote(summary.encode('utf8')))
 
         request = PutRequest(url)
         response = urllib2.urlopen(request)

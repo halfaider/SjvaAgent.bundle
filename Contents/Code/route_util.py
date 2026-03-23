@@ -3,7 +3,6 @@ import json
 import os
 import time
 import traceback
-import urllib
 
 # /:/plugins/com.plexapp.agents.sjva_agent/function/version?X-Plex-Token=%s' % (server_url, server_token)
 from . import d
@@ -13,7 +12,7 @@ Log = Log # type: Framework.api.logkit.LogKit
 Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
 Redirect = Redirect # type: Framework.objects.Redirect
 route = route # type: Framework.handlers.base.BaseHandler.route
-
+String = String # type: Framework.api.utilkit.StringKit
 
 @route('/version')
 def version():
@@ -55,14 +54,24 @@ def get_lyric(mode, filename, artist, track):
     lyric = ''
     if Prefs['server']:
         try:
-            url = '{ddns}/metadata/api/lyric/get_lyric?mode={mode}&filename={filename}&artist={artist}&track={track}&call=plex&apikey={apikey}'.format(ddns=Prefs['server'], mode=mode, filename=urllib.quote(filename.encode('utf8')), artist=urllib.quote(artist.encode('utf8')), track=urllib.quote(track.encode('utf8')), apikey=Prefs['apikey'])
-            data = JSON.ObjectFromURL(url, timeout=5000)
-            Log(data)
+            url = '{ddns}/metadata/api/lyric/get_lyric?mode={mode}&filename={filename}&artist={artist}&track={track}&call=plex'.format(
+                ddns=Prefs['server'],
+                mode=mode,
+                filename=String.Quote(filename.encode('utf-8')),
+                artist=String.Quote(artist.encode('utf-8')),
+                track=String.Quote(track.encode('utf-8'))
+            )
+            try:
+                timeout = int(Prefs['timeout'])
+            except Exception:
+                timeout = 300
+            data = JSON.ObjectFromURL(url, timeout=timeout, values={'apikey': Prefs['apikey']}, method="POST")
+            #Log(data)
             lyric = data['data'] if data['ret'] == 'success' else data['log']
         except Exception as e:
             Log.Exception(str(e))
             lyric = str(traceback.format_exc())
-    Log(lyric)
+    #Log(lyric)
     return lyric
 
 
@@ -80,8 +89,18 @@ def get_lyric2(mode, track_key):
             artist = data['MediaContainer']['Metadata'][0]['originalTitle']
             track = data['MediaContainer']['Metadata'][0]['title']
             filename = data['MediaContainer']['Metadata'][0]['Media'][0]['Part'][0]['file']
-            url = '{ddns}/metadata/api/lyric/get_lyric?mode={mode}&filename={filename}&artist={artist}&track={track}&call=plex&apikey={apikey}'.format(ddns=Prefs['server'], mode=mode, filename=urllib.quote(filename.encode('utf8')), artist=urllib.quote(artist.encode('utf8')), track=urllib.quote(track.encode('utf8')), apikey=Prefs['apikey'])
-            data = JSON.ObjectFromURL(url, timeout=5000)
+            url = '{ddns}/metadata/api/lyric/get_lyric?mode={mode}&filename={filename}&artist={artist}&track={track}&call=plex'.format(
+                ddns=Prefs['server'],
+                mode=mode,
+                filename=String.Quote(filename.encode('utf-8')),
+                artist=String.Quote(artist.encode('utf-8')),
+                track=String.Quote(track.encode('utf-8'))
+            )
+            try:
+                timeout = int(Prefs['timeout'])
+            except Exception:
+                timeout = 300
+            data = JSON.ObjectFromURL(url, timeout=timeout, values={'apikey': Prefs['apikey']}, method="POST")
             #Log(d(data))
             lyric = data['data'] if data['ret'] == 'success' else data['log']
         except Exception as e:
@@ -114,8 +133,19 @@ def music_normal_lyric(mode, song_id, track_key):
             track = data['MediaContainer']['Metadata'][0]['title']
             filename = data['MediaContainer']['Metadata'][0]['Media'][0]['Part'][0]['file']
 
-            url = '{ddns}/metadata/api/music_normal/song?mode={mode}&filename={filename}&artist={artist}&track={track}&call=plex&apikey={apikey}&song_id={song_id}'.format(ddns=ddns, mode=mode, filename=urllib.quote(filename.encode('utf8')), artist=urllib.quote(artist.encode('utf8')), track=urllib.quote(track.encode('utf8')), apikey=apikey, song_id=song_id)
-            data = JSON.ObjectFromURL(url, timeout=5000)
+            url = '{ddns}/metadata/api/music_normal/song?mode={mode}&filename={filename}&artist={artist}&track={track}&call=plex&song_id={song_id}'.format(
+                ddns=ddns, 
+                mode=mode, 
+                filename=String.Quote(filename.encode('utf-8')),
+                artist=String.Quote(artist.encode('utf-8')),
+                track=String.Quote(track.encode('utf-8')),
+                song_id=song_id
+            )
+            try:
+                timeout = int(Prefs['timeout'])
+            except Exception:
+                timeout = 300
+            data = JSON.ObjectFromURL(url, timeout=timeout, values={'apikey': apikey}, method="POST")
             #Log(d(data))
             lyric = data['lyric'] if data['ret'] == 'success' else data['log']
         except Exception as e:

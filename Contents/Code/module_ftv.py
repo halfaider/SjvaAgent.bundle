@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, urllib, unicodedata, urllib2
+import os, unicodedata, urllib2
 from .agent_base import AgentBase, get_sort_key
 
 Core = Core # Framework.core.FrameworkCore
@@ -13,6 +13,7 @@ Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
 HTTP = HTTP # type: Framework.api.networkkit.HTTPKit
 Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
 JSON = JSON # type: Framework.api.parsekit.JSONKit
+String = String # type: Framework.api.utilkit.StringKit
 unicode = unicode
 
 class ModuleFtv(AgentBase):
@@ -187,10 +188,12 @@ class ModuleFtv(AgentBase):
         metadata.original_title = meta_info.get('originaltitle') or ''
 
         try:
-            token = self.get_token()
-            url = 'http://127.0.0.1:32400/library/sections/%s/all?type=2&id=%s&originalTitle.value=%s&X-Plex-Token=%s' % (section_id, media.id, urllib.quote(metadata.original_title.encode('utf8')), token)
-            request = PutRequest(url)
+            url = 'http://127.0.0.1:32400/library/sections/%s/all?type=2&id=%s&originalTitle.value=%s' % (section_id, media.id, String.Quote(metadata.original_title.encode('utf8')))
+            request = PutRequest(url, headers={'X-Plex-Token': self.get_token()})
             response = urllib2.urlopen(request)
+            status_code = response.getcode()
+            if not status_code == 200:
+                Log("[%s] TV Show 정보 업데이트 실패: status %s", media.id, status_code)
         except Exception as e:
             Log.Exception(str(e))
         metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
@@ -282,7 +285,6 @@ class ModuleFtv(AgentBase):
         if True or int(season_no) > 100:
             # 시즌 title, summary
             try:
-                token = self.get_token()
                 filepath = media.seasons[season_no].all_parts()[0].file
                 tmp = os.path.basename(os.path.dirname(filepath))
                 season_title = metadata_season.title
@@ -293,8 +295,8 @@ class ModuleFtv(AgentBase):
                     if match.group('force_season_num') == season_no and match.group('season_title') is not None:
                         season_title = match.group('season_title')
 
-                url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s&X-Plex-Token=%s' % (section_id, media.seasons[season_no].id, urllib.quote(season_title.encode('utf8')), urllib.quote(metadata_season.summary.encode('utf8')), token)
-                request = PutRequest(url)
+                url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s' % (section_id, media.seasons[season_no].id, String.Quote(season_title.encode('utf8')), String.Quote(metadata_season.summary.encode('utf8')))
+                request = PutRequest(url, headers={'X-Plex-Token': self.get_token()})
                 response = urllib2.urlopen(request)
                 status_code = response.getcode()
                 if not status_code == 200:
@@ -308,9 +310,8 @@ class ModuleFtv(AgentBase):
                 url = 'http://127.0.0.1:32400/library/metadata/%s' % media.id
                 data = JSON.ObjectFromURL(url)
                 section_id = data['MediaContainer']['librarySectionID']
-                token = self.get_token()
-                url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s&X-Plex-Token=%s' % (section_id, media.seasons[season_no].id, urllib.quote(metadata_season.title.encode('utf8')), urllib.quote(metadata_season.summary.encode('utf8')), token)
-                request = PutRequest(url)
+                url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&title.value=%s&summary.value=%s' % (section_id, media.seasons[season_no].id, String.Quote(metadata_season.title.encode('utf8')), String.Quote(metadata_season.summary.encode('utf8')))
+                request = PutRequest(url, headers={'X-Plex-Token': self.get_token()})
                 response = urllib2.urlopen(request)
             except Exception as e:
                 Log.Exception(str(e))

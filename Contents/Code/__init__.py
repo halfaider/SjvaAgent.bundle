@@ -182,8 +182,8 @@ def storage_save_wrapper(func):
                 Log.Debug("WEBP 데이터 발견: %s", shorten_filename)
                 args = list(args)
                 args[2] = convert_webp(data)
-            elif not data or len(data) < 16:
-                Log.Debug("의심되는 데이터: %s (%d bytes)", shorten_filename, len(data))
+            #elif not data or len(data) < 16:
+            #    Log.Debug("의심되는 데이터: %s (%d bytes)", shorten_filename, len(data))
         except Exception as e:
             Log.Exception(str(e))
         result = func(*args, **kwds)

@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, json, urllib, re, unicodedata, time, urllib2, io
+import os, json, re, unicodedata, time, urllib2, io
 from io import open
 from functools import wraps
 import yaml
@@ -13,6 +13,7 @@ XML = XML # type: Framework.api.parsekit.XMLKit
 JSON = JSON # type: Framework.api.parsekit.JSONKit
 Platform = Platform # type: Framework.api.runtimekit.PlatformKit
 Datetime = Datetime # type: Framework.api.utilkit.DatetimeKit
+String = String # type: Framework.api.utilkit.StringKit
 
 """
 class MetadataSearchResult(XMLObject):
@@ -86,68 +87,40 @@ class AgentBase(object):
 
     def send_search(self, module_name, keyword, manual, year=''):
         try:
-            param = ''
-            if module_name in ['music_normal_artist', 'music_normal_album']:
-                param = module_name.split('_')[-1]
-                module_name = 'music_normal'
-
-            module_prefs = self.get_module_prefs(module_name)
-            sjva_mod_url = '/metadata/api/{module_name}'.format(module_name=module_name)
-
-            #url = '{ddns}/metadata/api/{module_name}/search?keyword={keyword}&manual={manual}&year={year}&call=plex&apikey={apikey}'.format(
-            url = '{ddns}{sjva_mod_url}/search?keyword={keyword}&manual={manual}&year={year}&call=plex&apikey={apikey}&param={param}'.format(
-              ddns=Prefs['server'] if module_prefs['server'] == '' else module_prefs['server'],
-              sjva_mod_url=sjva_mod_url,
-              module_name=module_name,
-              keyword=urllib.quote(keyword.encode('utf8')),
-              manual=manual,
-              year=year,
-              apikey=Prefs['apikey'] if module_prefs['apikey'] == '' else module_prefs['apikey'],
-              param=param,
+            url = self.get_api_url(module_name, "search")
+            url = url + "&keyword={keyword}&manual={manual}&year={year}".format(
+                keyword=String.Quote(keyword.encode('utf-8')),
+                manual=manual,
+                year=year,
             )
-            #Log(url)
-            return AgentBase.my_JSON_ObjectFromURL(url)
+            values = {'apikey': self.get_ff_apikey(module_name)}
+            return AgentBase.my_JSON_ObjectFromURL(url, method="POST", values=values)
         except Exception as e:
             Log.Exception(str(e))
 
 
     def send_info(self, module_name, code, title=None):
         try:
-            param = ''
-            if module_name in ['music_normal_artist', 'music_normal_album']:
-                param = module_name.split('_')[-1]
-                module_name = 'music_normal'
-            module_prefs = self.get_module_prefs(module_name)
-            sjva_mod_url = '/metadata/api/{module_name}'.format(module_name=module_name)
-
-            #url = '{ddns}/metadata/api/{module_name}/info?code={code}&call=plex&apikey={apikey}'.format(
-            url = '{ddns}{sjva_mod_url}/info?code={code}&call=plex&apikey={apikey}&param={param}'.format(
-              ddns=Prefs['server'] if module_prefs['server'] == '' else module_prefs['server'],
-              sjva_mod_url=sjva_mod_url,
-              module_name=module_name,
-              code=urllib.quote(code.encode('utf8')),
-              apikey=Prefs['apikey'] if module_prefs['apikey'] == '' else module_prefs['apikey'],
-              param=param,
+            url = self.get_api_url(module_name, "info")
+            url = url + "&code={code}".format(
+                code=String.Quote(code.encode('utf-8')),
             )
             if title is not None:
-                url += '&title=' + urllib.quote(title.encode('utf8'))
-            #Log(url)
-            return AgentBase.my_JSON_ObjectFromURL(url)
+                url += '&title=' + String.Quote(title.encode('utf-8'))
+            values = {'apikey': self.get_ff_apikey(module_name)}
+            return AgentBase.my_JSON_ObjectFromURL(url, method="POST", values=values)
         except Exception as e:
             Log.Exception(str(e))
 
 
     def send_episode_info(self, module_name, code):
         try:
-            module_prefs = self.get_module_prefs(module_name)
-            url = '{ddns}/metadata/api/{module_name}/episode_info?code={code}&call=plex&apikey={apikey}'.format(
-              ddns=Prefs['server'] if module_prefs['server'] == '' else module_prefs['server'],
-              module_name=module_name,
-              code=urllib.quote(code.encode('utf8')),
-              apikey=Prefs['apikey'] if module_prefs['apikey'] == '' else module_prefs['apikey']
+            url = self.get_api_url(module_name, "episode_info")
+            url = url + "&code={code}".format(
+                code=String.Quote(code.encode('utf-8')),
             )
-            #Log(url)
-            return AgentBase.my_JSON_ObjectFromURL(url)
+            values = {'apikey': self.get_ff_apikey(module_name)}
+            return AgentBase.my_JSON_ObjectFromURL(url, method="POST", values=values)
         except Exception as e:
             Log.Exception(str(e))
 
@@ -194,18 +167,16 @@ class AgentBase(object):
 
 
     @staticmethod
-    def my_JSON_ObjectFromURL(url, timeout=None, retry=3):
+    def my_JSON_ObjectFromURL(url, timeout=None, retry=1, method='GET', values=None):
         try:
             if timeout is None:
                 timeout = int(Prefs['timeout'])
-            #Log('my_JSON_ObjectFromURL retry : %s, url : %s', retry, url)
-            return JSON.ObjectFromURL(url, timeout=timeout)
+            return JSON.ObjectFromURL(url, timeout=timeout, method=method, values=values)
         except Exception as e:
-            Log.Exception(str(e))
-            if retry > 0:
+            if retry < 4:
+                Log.Error("retry=%s url='%s' error='%s'", retry, url, str(e))
                 time.sleep(1)
-                Log('RETRY : %s', retry)
-                return AgentBase.my_JSON_ObjectFromURL(url, timeout, retry=(retry-1))
+                return AgentBase.my_JSON_ObjectFromURL(url, timeout, retry=(retry + 1), method=method, values=values)
             else:
                 Log.Error('CRITICAL my_JSON_ObjectFromURL error')
 
@@ -931,6 +902,33 @@ class AgentBase(object):
         episode.thumbs.validate_keys([])
         episode.absolute_index = None
         return episode
+
+
+    def get_ff_apikey(self, module_name):
+        try:
+            module_prefs = self.get_module_prefs(module_name)
+            return module_prefs['apikey'] if module_prefs['apikey'] else Prefs['apikey']
+        except Exception:
+            return ""
+
+
+    def get_api_url(self, module_name, path):
+        try:
+            param = ''
+            if module_name in ['music_normal_artist', 'music_normal_album']:
+                param = module_name.split('_')[-1]
+                module_name = 'music_normal'
+            module_prefs = self.get_module_prefs(module_name)
+            server = module_prefs['server'] if module_prefs['server'] else Prefs['server']
+            server = server.strip(' /') + '/'
+            mod_path = "metadata/api/{module_name}/{path}?call=plex&param={param}".format(
+                module_name=module_name.strip(' /'),
+                path=path.strip(' /'),
+                param=param
+            )
+            return String.JoinURL(server, mod_path)
+        except Exception as e:
+            Log.Exception(str(e))
 
 
 class PutRequest(urllib2.Request):

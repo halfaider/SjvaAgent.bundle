@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, json, urllib, unicodedata, urllib2
+import os, json, unicodedata, urllib2
 from .agent_base import AgentBase, PutRequest, get_sort_key
 
 Core = Core # Framework.core.FrameworkCore
@@ -13,6 +13,7 @@ Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
 HTTP = HTTP # type: Framework.api.networkkit.HTTPKit
 Prefs = Prefs # type: Framework.api.runtimekit.PrefsKit
 JSON = JSON # type: Framework.api.parsekit.JSONKit
+String = String # type: Framework.api.utilkit.StringKit
 
 
 class ModuleKtv(AgentBase):
@@ -97,7 +98,7 @@ class ModuleKtv(AgentBase):
             if 'daum' in search_data:
                 data = search_data['daum']
                 has_multiple_seasons = False
-                if len(media.seasons) > 1:
+                if getattr(media, 'seasons', None) and len(media.seasons) > 1:
                     for media_season_index in media.seasons:
                         try:
                             if int(media_season_index) > 1:# and int(media_season_index) < 1900:
@@ -426,7 +427,7 @@ class ModuleKtv(AgentBase):
     def update(self, metadata, media, lang):
         # 시즌이 2개 이상이고 시즌 번호가 1, 0만 있는지 검사
         has_multiple_seasons = False
-        if len(media.seasons) > 1:
+        if getattr(media, 'seasons', None) and len(media.seasons) > 1:
             for index_ in media.seasons:
                 try:
                     if int(index_) > 1:
@@ -514,6 +515,7 @@ class ModuleKtv(AgentBase):
             index_list = sorted(media.seasons.keys(), key=get_sort_key)
             Log.Debug('[%s] Season indexes: %s', media.id, index_list)
 
+            main_meta_info_episodes_by_date = {}
             for media_season_index in index_list:
                 try:
                     """
@@ -605,10 +607,25 @@ class ModuleKtv(AgentBase):
                                 self.update_season(metadata, meta_info, data_urls, media_season_index)
 
                         # 에피소드 업데이트
-                        meta_info_episodes_by_date = {}
                         meta_info_episodes = (meta_info.get('extra_info') or {}).get('episodes') or {}
                         media_episodes = media.seasons[media_season_index].episodes
                         metadata_episodes = metadata.seasons[media_season_index].episodes
+                        """
+                        2026-03-23 halfaider
+                        각 시즌별로 날짜별 에피소드 색인
+                        """
+                        if meta_info.get('code') != main_meta_info.get('code'):
+                            meta_info_episodes_by_date = {}
+                        else:
+                            meta_info_episodes_by_date = main_meta_info_episodes_by_date
+                        if not meta_info_episodes_by_date:
+                            for key, value in meta_info_episodes.items():
+                                for site in ('daum', 'tving', 'wavve'):
+                                    site_data = value.get(site)
+                                    if site_data:
+                                        premiered = site_data.get('premiered')
+                                        if isinstance(premiered, str) and premiered[0].isdigit():
+                                            meta_info_episodes_by_date[premiered] = (key, value)
 
                         count_metadata = len(metadata_episodes)
                         count_media = len(media_episodes)
@@ -623,8 +640,8 @@ class ModuleKtv(AgentBase):
                                 originally_available_at = metadata_episode.originally_available_at or ''
                                 # 에피소드 정보 초기화
                                 self.reset_episode_metadata(metadata_episode)
-                                meta_info_episode = meta_info_episodes.get(media_episode_index)
-                                if meta_info_episode:
+                                meta_info_episode = meta_info_episodes.get(media_episode_index) or {}
+                                if meta_info_episode and media_episode_index.isdigit():
                                     self.update_episode(meta_info_episode, metadata_episode, info_json, is_write_json, meta_code)
                                 else:
                                     # 에피 번호로 검색이 안 되면 날짜로 매칭 시도
@@ -651,14 +668,6 @@ class ModuleKtv(AgentBase):
                                         match = Regex(r'(\d{4}-\d{2}-\d{2})').search(text)
                                         if match:
                                             media_premiered = match.group(1)
-                                            if not meta_info_episodes_by_date:
-                                                for key, value in meta_info_episodes.items():
-                                                    for site in ('daum', 'tving', 'wavve'):
-                                                        site_data = value.get(site)
-                                                        if site_data:
-                                                            premiered = site_data.get('premiered')
-                                                            if isinstance(premiered, str) and premiered[0].isdigit():
-                                                                meta_info_episodes_by_date[premiered] = (key, value)
                                             if media_premiered in meta_info_episodes_by_date:
                                                 epi_index, epi_value = meta_info_episodes_by_date[media_premiered]
                                                 Log.Debug("[%s] '%s' match with '%s'", media.id, media_premiered, epi_index)
@@ -666,6 +675,7 @@ class ModuleKtv(AgentBase):
                                                 break
                                     else:
                                         Log.Debug("[%s] No episode info. found: %s", media.id, media_episode_index)
+                                    #Log.Debug("[%s] episode %s: %s", media.id, media_episode_index, metadata_episode.title)
 
                     # 시즌 title, summary
                     if is_write_json and only_season_title_show == False:
@@ -704,9 +714,9 @@ class ModuleKtv(AgentBase):
                             Log.Debug("[%s] final season summary: %s", media.id, metadata_season.summary)
                             url = 'http://127.0.0.1:32400/library/sections/%s/all?type=3&id=%s&X-Plex-Token=%s' % (section_id, media.seasons[media_season_index].id, token)
                             if season_title:
-                                url = url + "&title.value=%s" % urllib.quote(season_title.encode('utf8'))
+                                url = url + "&title.value=%s" % String.Quote(season_title.encode('utf8'))
                             if metadata_season.summary:
-                                url = url + "&summary.value=%s" % urllib.quote(metadata_season.summary.encode('utf8'))
+                                url = url + "&summary.value=%s" % String.Quote(metadata_season.summary.encode('utf8'))
                             if season_title or metadata_season.summary:
                                 request = PutRequest(url)
                                 response = urllib2.urlopen(request)

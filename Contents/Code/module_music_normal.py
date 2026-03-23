@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import os, urllib, re, unicodedata
+import os, re, unicodedata
 from .agent_base import AgentBase
 from collections import defaultdict
 
@@ -7,6 +7,7 @@ Log = Log # type: Framework.api.logkit.LogKit
 Datetime = Datetime # Framework.api.utilkit.DatetimeKit
 Proxy = Proxy # type: Framework.api.modelkit.ProxyKit
 MetadataSearchResult = MetadataSearchResult # type: Framework.objects.MetadataSearchResult
+String = String # type: Framework.api.utilkit.StringKit
 
 VARIOUS_ARTISTS_POSTER = 'https://music.plex.tv/pixogs/various_artists_poster.jpg'
 
@@ -20,10 +21,10 @@ class ModuleMusicNormalArtist(AgentBase):
                 return
             if media.artist.startswith('Various Artists_'):
                 #results.Append(MetadataSearchResult(id='SD%s' % int(time.time()), name= '[Various Artists]', thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
-                results.Append(MetadataSearchResult(id='SD%s' % urllib.quote(media.artist.replace('Various Artists_', '')), name= '[Various Artists]', thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
+                results.Append(MetadataSearchResult(id='SD%s' % String.Quote(media.artist.replace('Various Artists_', '')), name= '[Various Artists]', thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
                 return
             if media.artist.startswith('VA_'):
-                results.Append(MetadataSearchResult(id='SE%s' % urllib.quote(media.artist[3:].encode('utf8')), name= media.artist[3:], thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
+                results.Append(MetadataSearchResult(id='SE%s' % String.Quote(media.artist[3:].encode('utf8')), name= media.artist[3:], thumb = VARIOUS_ARTISTS_POSTER, lang  = lang, score = 100))
                 return
 
             if manual and media.artist is not None and (media.artist.startswith('SA')):
@@ -70,7 +71,7 @@ class ModuleMusicNormalArtist(AgentBase):
     def update(self, metadata, media, lang):
         code = metadata.id
         if code.startswith('SD') or code.startswith('SE'):
-            metadata.title = '[Various Artists]' if code.startswith('SD') else urllib.unquote(code[2:])
+            metadata.title = '[Various Artists]' if code.startswith('SD') else String.Unquote(code[2:])
             metadata.title_sort = unicodedata.normalize('NFKD', metadata.title)
             valid_names = set()
             self.set_http_data(VARIOUS_ARTISTS_POSTER, metadata.posters, valid_names)
