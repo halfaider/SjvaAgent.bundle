@@ -233,6 +233,25 @@ class ModuleKtv(AgentBase):
             except Exception as e:
                 Log.Exception(str(e))
 
+        # clear logo
+        try:
+            is_enabled_clear_logo = Prefs['clear_logo']
+        except Exception:
+            is_enabled_clear_logo = False
+        if is_enabled_clear_logo:
+            for logo in sorted(
+                (art for art in remote_metadata.get('thumb') or () if art.get('aspect') == 'logo'),
+                key=lambda k: k.get('score') or 0,
+                reverse=True
+            ):
+                logo_url = logo.get('value') or logo.get('thumb')
+                if logo_url:
+                    try:
+                        self.put_artwork(media.id, logo_url)
+                    except Exception:
+                        Log.Exception("로고 업데이트 실패: %s", logo_url)
+                    break
+
         # 부가영상
         self.set_extras(metadata, remote_metadata)
 

@@ -83,5 +83,11 @@
 		"label": "메타데이터 새로고침 시 기존 메타데이터 전부 삭제 (업로드 포함)",
 		"type": "bool",
 		"default": "False"
+	},
+	{
+		"id": "clear_logo",
+		"label": "가능할 경우 TV Show 로고 적용",
+		"type": "bool",
+		"default": "False"
 	}
 ]

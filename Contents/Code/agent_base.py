@@ -931,6 +931,16 @@ class AgentBase(object):
             Log.Exception(str(e))
 
 
+    def put_artwork(self, media_id, artwork_url, element="clearLogo"):
+        # "thumb" "art" "clearLogo" "squareArt" "banner" "poster" "theme"
+        url = "http://127.0.0.1:32400/library/metadata/{media_id}/{element}?url={artwork_url}".format(
+            media_id=media_id,
+            element=element,
+            artwork_url=String.Quote(artwork_url)
+        )
+        HTTP.Request(url, method='PUT', headers={'X-Plex-Token': self.get_token()}).content
+
+
 class PutRequest(urllib2.Request):
     def __init__(self, *args, **kwargs):
         return urllib2.Request.__init__(self, *args, **kwargs)

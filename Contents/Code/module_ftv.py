@@ -85,6 +85,13 @@ class ModuleFtv(AgentBase):
         except Exception:
             seasons_to_update = {}
         Log("[%s] seasons to update: %s", media.id, seasons_to_update)
+
+        guid_parts = self.parse_guid(metadata.guid)
+        if guid_parts.get('is_episode'):
+            Log.Debug("[%s] Update episode: %s", media.id, guid_parts.get('episode'))
+            Log.Debug("[%s] 에피소드만 메타데이터 새로고침하면 에피소드 전용 번들 폴더에 저장됨", media.id)
+            return
+
         meta_info = None
         info_json = None
         is_write_json = self.is_write_json(media)
@@ -244,6 +251,25 @@ class ModuleFtv(AgentBase):
         metadata.posters.validate_keys(art_map['poster'][1])
         metadata.art.validate_keys(art_map['landscape'][1])
         metadata.banners.validate_keys(art_map['banner'][1])
+
+        # clear logo
+        try:
+            is_enabled_clear_logo = Prefs['clear_logo']
+        except Exception:
+            is_enabled_clear_logo = False
+        if is_enabled_clear_logo:
+            for logo in sorted(
+                (art for art in meta_info.get('art') or () if art.get('aspect') == 'logo'),
+                key=lambda k: k.get('score') or 0,
+                reverse=True
+            ):
+                logo_url = logo.get('value') or logo.get('thumb')
+                if logo_url:
+                    try:
+                        self.put_artwork(media.id, logo_url)
+                    except Exception:
+                        Log.Exception("로고 업데이트 실패: %s", logo_url)
+                    break
 
         # 테마
         valid_names = []
