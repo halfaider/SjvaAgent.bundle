@@ -89,5 +89,11 @@
 		"label": "TMDB 메타를 사용할 경우 plex_mate에 slug, clear logo 업데이트 요청",
 		"type": "bool",
 		"default": "False"
+	},
+	{
+		"id": "plex_exclusive_server",
+		"label": "plex_mate에 요청시 서버가 다를 경우 주소와 apikey\nhttps://ff.domain.com:9999|my_api_key 혹은 https://ff.domain.com:9999",
+		"type": "text",
+		"default": ""
 	}
 ]

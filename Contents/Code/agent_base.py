@@ -930,7 +930,7 @@ class AgentBase(object):
         except Exception as e:
             Log.Error("이미지 업데이트 실패: %s", str(e))
 
-    
+
     def get_matches(self, meta_id, title, year=1900, agent="tv.plex.agents.movie", lang="ko-KR"):
         url = "http://127.0.0.1:32400/library/metadata/{meta_id}/matches?manual=1&title={title}&year={year}&agent={agent}&language={lang}".format(
             meta_id=meta_id,
@@ -960,22 +960,39 @@ class AgentBase(object):
         except Exception:
             Log.Error("플렉스 메타데이터를 가져올 수 없습니다: %s", plex_guid)
         return {}
-    
+
 
     def plex_exclusive(self, metadata_id):
         try:
-            is_enabled = Prefs['plex_exclusive']
+            if not Prefs['plex_exclusive']:
+                return
         except Exception:
-            is_enabled = False
-        if is_enabled:
-            try:
-                url = "{ddns}/plex_mate/api/tool/plex_exclusive?metadata_id={metadata_id}".format(
-                    ddns=Prefs['server'],
-                    metadata_id=metadata_id
-                )
-                HTTP.Request(url, timeout=10, values={'apikey': Prefs['apikey']}, method="POST").content
-            except Exception as e:
-                Log.Error("플렉스 정보 업데이트 요청 실패: %s", str(e))
+            return
+        server = None
+        apikey = None
+        try:
+            server = Prefs['server']
+            apikey = Prefs['apikey']
+
+            plex_exclusive_server = Prefs['plex_exclusive_server']
+            alt_server, _, alt_apikey = plex_exclusive_server.partition('|')
+            alt_server = alt_server.strip()
+            if alt_server:
+                server = alt_server
+                apikey = alt_apikey.strip()
+        except Exception:
+            pass
+        if not server:
+            Log.Error("서버 정보가 없어서 요청을 취소합니다: %s", server)
+            return
+        try:
+            url = "{server}/plex_mate/api/tool/plex_exclusive?metadata_id={metadata_id}".format(
+                server=server,
+                metadata_id=metadata_id
+            )
+            HTTP.Request(url, timeout=10, values={'apikey': apikey}, method="POST").content
+        except Exception as e:
+            Log.Error("플렉스 정보 업데이트 요청 실패: %s", str(e))
 
 
 class PutRequest(urllib2.Request):
