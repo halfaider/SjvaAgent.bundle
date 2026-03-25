@@ -997,6 +997,21 @@ class AgentBase(object):
         except Exception as e:
             Log.Error("플렉스 정보 업데이트 요청 실패: %s", str(e))
 
+    
+    def update_logo(self, metadata_id, remote_metadata):
+        for logo in sorted(
+            (art for art in remote_metadata.get('thumb') or () if art.get('aspect') == 'logo'),
+            key=lambda k: k.get('score') or 0,
+            reverse=True
+        ):
+            logo_url = logo.get('value') or logo.get('thumb')
+            if logo_url:
+                try:
+                    self.put_artwork(metadata_id, logo_url)
+                except Exception:
+                    Log.error("로고 업데이트 실패: %s", logo_url)
+                break
+
 
 class PutRequest(urllib2.Request):
     def __init__(self, *args, **kwargs):

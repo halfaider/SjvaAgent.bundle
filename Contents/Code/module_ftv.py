@@ -240,6 +240,8 @@ class ModuleFtv(AgentBase):
         code = meta_info.get('code') or ''
         if code.startswith(("FT", "MT")):
             self.plex_exclusive(media.id)
+        else:
+            self.update_logo(media.id, meta_info)
 
         # poster
         art_map = {'poster': [metadata.posters, set()], 'landscape' : [metadata.art, set()], 'banner':[metadata.banners, set()]}
