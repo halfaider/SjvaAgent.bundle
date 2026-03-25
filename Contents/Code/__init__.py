@@ -110,7 +110,7 @@ def convert_webp(webp_data):
 
 
 def is_webp(data):
-    if len(data) < 16:
+    if not data or len(data) < 16:
         return False
     # .avi. .wav 등 도 RIFF
     if data[0:4] == b'RIFF' and data[8:12] == b'WEBP':

@@ -690,10 +690,13 @@ class AgentBase(object):
 
     def set_http_data(self, url, container, valid_names, preview=None):
         """
-        2026-03-20 halfaider
-        Media에는 원본 파일, Preview에는 원본 파일의 저용량을 지정
-        표시되는 포스터, 아트, 썸네일은 _stored 폴더에 저장되는데 Media가 우선 저장됨
-        agent 폴더에는 Preview가 우선 저장됨
+        2026-03-25 halfaider
+        Media는 다운로드를 즉시 하고 Preview는 나중에 필요할 때 다운로드 하는 방식
+        둘 다 새로고침 시 이미지를 다운로드해서 agent 폴더에 저장함
+        플렉스에서 포스터를 표시하려고 할 때,
+        Preview는 저장된 파일이 원본이 아니라 판단하고 URL로부터 직접 원본 이미지를 다운받아 처리함
+        Media는 저장된 파일이 원본이라 판단해서 추가 다운로드 없이 처리함
+        미리 다운로드해 놓을 것이냐 아니면 필요할 때 다운로드할 것이냐의 차이
         """
         sort_order = len(valid_names) + 1
 
