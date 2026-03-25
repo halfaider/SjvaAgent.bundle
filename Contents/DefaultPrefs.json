@@ -85,8 +85,8 @@
 		"default": "False"
 	},
 	{
-		"id": "clear_logo",
-		"label": "가능할 경우 TV Show 로고 적용",
+		"id": "plex_exclusive",
+		"label": "TMDB 메타를 사용할 경우 plex_mate에 slug, clear logo 업데이트 요청",
 		"type": "bool",
 		"default": "False"
 	}

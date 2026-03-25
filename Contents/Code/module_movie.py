@@ -18,20 +18,20 @@ class ModuleMovie(AgentBase):
             if code != None and code.startswith('M'):
                 if self.is_include_time_info(media):
                     code = code + '|%s' % int(time.time())
-                meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
+                meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
                 results.Append(meta)
                 #return
         except Exception as e:
             Log.Exception(str(e))
 
         try:
-            if manual and media.name is not None and (media.name.startswith('MD') or media.name.startswith('MT') or media.name.startswith('MN')):
+            if manual and media.name is not None and media.name.startswith(('MD', 'MT', 'MN')):
                 code = media.name
                 if self.is_include_time_info(media):
                     code = code + '|%s' % int(time.time())
-                meta = MetadataSearchResult(id=code, name=code, year=1900, score=150, thumb="", lang=lang)
+                meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
                 results.Append(meta)
-                #return
+                return
 
             if self.is_read_json(media):
                 if manual:
@@ -45,7 +45,7 @@ class ModuleMovie(AgentBase):
                         #code = code + ('^1' if manual else '^0')
                         meta = MetadataSearchResult(id=code, name=info_json['title'], year=info_json['year'], score=100, thumb="", lang=lang)
                         results.Append(meta)
-                        #return
+                        return
 
             movie_year = media.year
             movie_name = unicodedata.normalize('NFKC', unicode(media.name)).strip()
@@ -174,6 +174,11 @@ class ModuleMovie(AgentBase):
             for item in meta_info['producers']:
                 actor = metadata.producers.new()
                 actor.name = item
+
+            # clear logo, slug
+            code = meta_info.get('code') or ''
+            if code.startswith(("FT", "MT")):
+                self.plex_exclusive(media.id)
 
             # art
             templates = {'poster': [metadata.posters, set()], 'landscape' : [metadata.art, set()], 'banner':[metadata.banners, set()]}

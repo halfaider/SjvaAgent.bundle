@@ -190,10 +190,10 @@ class AgentBase(object):
         except Exception as e:
             Log.Exception(str(e))
 
-    def get_token(self):
+    def get_token(self, local=True):
         # 'Critical', 'Debug', 'Error', 'Exception', 'Info', 'Stack', 'Warn'
         try:
-            if Core.sandbox.context:
+            if Core.sandbox.context and local:
                 token = getattr(Core.sandbox.context, 'token', None)
                 if token:
                     return token
@@ -874,19 +874,6 @@ class AgentBase(object):
         return str(index)
 
 
-    def get_data_from_info_json(self, search_code, search_title, info_json = None, is_write_json = False):
-        meta_info = {}
-        if info_json and search_code in info_json:
-            # 방송중이라면 저장된 정보를 무시해야 새로운 에피를 갱신
-            if info_json[search_code]['status'] == 2:
-                meta_info = info_json[search_code]
-        if not meta_info:
-            meta_info = self.send_info(self.module_name, search_code, title=search_title)
-            if meta_info and is_write_json:
-                info_json[search_code] = meta_info
-        return meta_info
-
-
     def reset_episode_metadata(self, episode):
         episode.title = None
         episode.summary = None
@@ -938,7 +925,57 @@ class AgentBase(object):
             element=element,
             artwork_url=String.Quote(artwork_url)
         )
-        HTTP.Request(url, method='PUT', headers={'X-Plex-Token': self.get_token()}).content
+        try:
+            HTTP.Request(url, method='PUT').content
+        except Exception as e:
+            Log.Error("이미지 업데이트 실패: %s", str(e))
+
+    
+    def get_matches(self, meta_id, title, year=1900, agent="tv.plex.agents.movie", lang="ko-KR"):
+        url = "http://127.0.0.1:32400/library/metadata/{meta_id}/matches?manual=1&title={title}&year={year}&agent={agent}&language={lang}".format(
+            meta_id=meta_id,
+            title=String.Quote(title),
+            year=year,
+            agent=String.Quote(agent),
+            lang=String.Quote(lang)
+        )
+        try:
+            data = self.my_JSON_ObjectFromURL(url)
+            if data:
+                return (data.get('MediaContainer') or {}).get('SearchResult') or []
+        except Exception:
+            Log.Exception("매칭 검색 실패: %s (%s)", meta_id, title, year)
+        return []
+
+
+    def get_plex_metadata(self, plex_guid):
+        guid = plex_guid.rsplit('/')[-1]
+        url = "https://metadata.provider.plex.tv/library/metadata/{guid}".format(
+            guid=guid,
+        )
+        try:
+            data = JSON.ObjectFromURL(url, headers={"accpet": "application/json", "X-Plex-Token": self.get_token(local=False)})
+            if data:
+                return ((data.get('MediaContainer') or {}).get('Metadata') or [{}])[0]
+        except Exception:
+            Log.Error("플렉스 메타데이터를 가져올 수 없습니다: %s", plex_guid)
+        return {}
+    
+
+    def plex_exclusive(self, metadata_id):
+        try:
+            is_enabled = Prefs['plex_exclusive']
+        except Exception:
+            is_enabled = False
+        if is_enabled:
+            try:
+                url = "{ddns}/plex_mate/api/tool/plex_exclusive?metadata_id={metadata_id}".format(
+                    ddns=Prefs['server'],
+                    metadata_id=metadata_id
+                )
+                HTTP.Request(url, timeout=10, values={'apikey': Prefs['apikey']}, method="POST").content
+            except Exception as e:
+                Log.Error("플렉스 정보 업데이트 요청 실패: %s", str(e))
 
 
 class PutRequest(urllib2.Request):

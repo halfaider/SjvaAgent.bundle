@@ -39,7 +39,7 @@ class ModuleKtv(AgentBase):
                 if code != None and code.startswith('MT'):
                     code = code.replace('MT', 'FT')
                 if code != None and code.startswith('F'):
-                    meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
+                    meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
                     results.Append(meta)
                     #return
             except Exception as e:
@@ -48,9 +48,9 @@ class ModuleKtv(AgentBase):
             # 2021-12-13 닥터 슬럼프 리메이크 FT105262
             if manual and media.show is not None and media.show.startswith('FT'):
                 code = media.show
-                meta = MetadataSearchResult(id=code, name=code, year='', score=150, thumb="", lang=lang)
+                meta = MetadataSearchResult(id=code, name=code, year='', score=100, thumb="", lang=lang)
                 results.Append(meta)
-                #return
+                return
 
             if manual and media.show is not None and media.show.startswith('K'):
                 # 2022-11-18 KBS 같은 경우
@@ -59,7 +59,7 @@ class ModuleKtv(AgentBase):
                     if code != 'KTV':
                         meta = MetadataSearchResult(id=code, name=title, year='', score=100, thumb="", lang=lang)
                         results.Append(meta)
-                        #return
+                        return
                 except Exception:
                     pass
 
@@ -110,12 +110,15 @@ class ModuleKtv(AgentBase):
                 # 미디어도 시즌, 메타도 시즌
                 if has_multiple_seasons and len(data['series']) > 1:
                     # 마지막 시즌 ID
-                    results.Append(MetadataSearchResult(
-                        id=data['series'][-1]['code'],
+                    code = data['series'][-1]['code']
+                    msr = MetadataSearchResult(
+                        id=code,
                         name=u'%s | 시리즈' % keyword,
                         year=data['series'][-1]['year'],
                         score=100, lang=lang)
-                    )
+                    msr.type = "show"
+                    msr.summary = ", ".join(show.get('title') for show in data['series'] if show.get('title'))
+                    results.Append(msr)
 
                 # 미디어 단일, 메타 시즌
                 elif len(data['series']) > 1:
@@ -216,6 +219,11 @@ class ModuleKtv(AgentBase):
         for tmp in remote_metadata.get('genre') or ():
             metadata.genres.add(tmp)
 
+        # clear logo, slug
+        code = remote_metadata.get('code') or ''
+        if code.startswith(("FT", "MT")):
+            self.plex_exclusive(media.id)
+
         # poster
         poster_templates = {
             'poster': metadata.posters,
@@ -232,25 +240,6 @@ class ModuleKtv(AgentBase):
                 self.set_http_data(image_url, container, data_urls[aspect], preview=item.get('thumb'))
             except Exception as e:
                 Log.Exception(str(e))
-
-        # clear logo
-        try:
-            is_enabled_clear_logo = Prefs['clear_logo']
-        except Exception:
-            is_enabled_clear_logo = False
-        if is_enabled_clear_logo:
-            for logo in sorted(
-                (art for art in remote_metadata.get('thumb') or () if art.get('aspect') == 'logo'),
-                key=lambda k: k.get('score') or 0,
-                reverse=True
-            ):
-                logo_url = logo.get('value') or logo.get('thumb')
-                if logo_url:
-                    try:
-                        self.put_artwork(media.id, logo_url)
-                    except Exception:
-                        Log.Exception("로고 업데이트 실패: %s", logo_url)
-                    break
 
         # 부가영상
         self.set_extras(metadata, remote_metadata)
@@ -763,3 +752,19 @@ class ModuleKtv(AgentBase):
             else:
                 continue
             bucket.validate_keys(urls)
+
+    def get_data_from_info_json(self, search_code, search_title, info_json = None, is_write_json = False):
+        meta_info = {}
+        if info_json and search_code in info_json:
+            # 방송중이라면 저장된 정보를 무시해야 새로운 에피를 갱신
+            if info_json[search_code]['status'] == 2:
+                meta_info = info_json[search_code]
+        if not meta_info:
+            if search_code.startswith('FT'):
+                module_name = 'ftv'
+            else:
+                module_name = self.module_name
+            meta_info = self.send_info(module_name, search_code, title=search_title)
+            if meta_info and is_write_json:
+                info_json[search_code] = meta_info
+        return meta_info

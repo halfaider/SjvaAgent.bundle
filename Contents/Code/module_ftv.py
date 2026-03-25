@@ -25,7 +25,7 @@ class ModuleFtv(AgentBase):
             if code != None and code.startswith('MT'):
                 code = code.replace('MT', 'FT')
             if code != None and code.startswith('F'):
-                meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
+                meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
                 results.Append(meta)
                 #return
         except Exception as e:
@@ -37,9 +37,9 @@ class ModuleFtv(AgentBase):
                     return False
                 elif media.show.startswith('FT'):
                     code = media.show
-                    meta = MetadataSearchResult(id=code, name=code, year='', score=150, thumb="", lang=lang)
+                    meta = MetadataSearchResult(id=code, name=code, year='', score=100, thumb="", lang=lang)
                     results.Append(meta)
-                    #return
+                    return
 
             if self.is_read_json(media):
                 if manual:
@@ -52,7 +52,7 @@ class ModuleFtv(AgentBase):
                             code = info_json['show']['code']
                             meta = MetadataSearchResult(id=code, name=info_json['show']['title'], year=info_json['show']['year'], score=100, thumb="", lang=lang)
                             results.Append(meta)
-                            #return
+                            return
 
 
             media.show = unicodedata.normalize('NFC', unicode(media.show)).strip()
@@ -236,6 +236,11 @@ class ModuleFtv(AgentBase):
         metadata.roles.clear()
         self.set_roles(metadata, meta_info)
 
+        # clear logo, slug
+        code = meta_info.get('code') or ''
+        if code.startswith(("FT", "MT")):
+            self.plex_exclusive(media.id)
+
         # poster
         art_map = {'poster': [metadata.posters, set()], 'landscape' : [metadata.art, set()], 'banner':[metadata.banners, set()]}
         for item in sorted(meta_info.get('art') or (), key=lambda k: k.get('score') or 0, reverse=True):
@@ -251,25 +256,6 @@ class ModuleFtv(AgentBase):
         metadata.posters.validate_keys(art_map['poster'][1])
         metadata.art.validate_keys(art_map['landscape'][1])
         metadata.banners.validate_keys(art_map['banner'][1])
-
-        # clear logo
-        try:
-            is_enabled_clear_logo = Prefs['clear_logo']
-        except Exception:
-            is_enabled_clear_logo = False
-        if is_enabled_clear_logo:
-            for logo in sorted(
-                (art for art in meta_info.get('art') or () if art.get('aspect') == 'logo'),
-                key=lambda k: k.get('score') or 0,
-                reverse=True
-            ):
-                logo_url = logo.get('value') or logo.get('thumb')
-                if logo_url:
-                    try:
-                        self.put_artwork(media.id, logo_url)
-                    except Exception:
-                        Log.Exception("로고 업데이트 실패: %s", logo_url)
-                    break
 
         # 테마
         valid_names = []

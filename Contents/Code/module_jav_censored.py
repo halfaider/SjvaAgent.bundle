@@ -35,7 +35,7 @@ class ModuleJavCensoredBase(AgentBase):
 
 
     def base_search(self, results, media, lang, manual, keyword):
-        if manual and media.name is not None and (media.name.startswith('CD') or media.name.startswith('CB') or media.name.startswith('DT')):
+        if manual and media.name is not None and media.name.startswith(('CD', 'CB', 'DT')):
             code = media.name
             meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
             results.Append(meta)
