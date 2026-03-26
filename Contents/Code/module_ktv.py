@@ -115,7 +115,7 @@ class ModuleKtv(AgentBase):
                         id=code,
                         name=u'%s | 시리즈' % keyword,
                         year=data['series'][-1]['year'],
-                        score=100, lang=lang)
+                        score=100, lang=lang, thumb=data['series'][-1]['thumb'])
                     msr.type = "show"
                     msr.summary = ", ".join(show.get('title') for show in data['series'] if show.get('title'))
                     results.Append(msr)
@@ -124,8 +124,6 @@ class ModuleKtv(AgentBase):
                 elif len(data['series']) > 1:
                     #reversed
                     for index, series in enumerate(reversed(data['series'])):
-                        Log(index)
-                        Log(series)
                         if series['year'] is not None:
                             score = 95-(index*5)
                             if media.year == series['year']:
@@ -135,7 +133,10 @@ class ModuleKtv(AgentBase):
                             if 'status' in series and series['status'] == 0:
                                 score = score -40
                             max_score = max(max_score, score)
-                            results.Append(MetadataSearchResult(id=series['code'], name=series['title'], year=series['year'], score=score, lang=lang))
+                            msr = MetadataSearchResult(id=series['code'], name=series['title'], year=series['year'], thumb=series.get('thumb'), score=score, lang=lang)
+                            msr.type = 'show'
+                            msr.summary = series.get('code') + " "  + series.get('studio') or ''
+                            results.Append(msr)
                 # 미디어 단일, 메타 단일 or 미디어 시즌, 메타 단일
                 else:
                     # 2019-05-23 미리보기 에피들이 많아져서 그냥 방송예정도 선택되게.
@@ -168,11 +169,17 @@ class ModuleKtv(AgentBase):
                         if program['year'] == media.year:
                             score = min(equal_max_score, 100 - (index))
                             max_score = max(max_score, score)
-                            results.Append(MetadataSearchResult(id=program['code'], name='%s | %s' % (program['title'], program['studio']), year=program['year'], score=score, lang=lang))
+                            sr = MetadataSearchResult(id=program['code'], name='%s | %s' % (program['title'], program['studio']), year=program['year'], thumb=program['thumb'], score=score, lang=lang)
+                            sr.type = "show"
+                            sr.summary = program.get('code') + " " + program.get('studio') or ""
+                            results.Append(sr)
                         else:
                             score = min(equal_max_score, 80 - (index*5))
                             max_score = max(max_score, score)
-                            results.Append(MetadataSearchResult(id=program['code'], name='%s | %s' % (program['title'], program['studio']), year=program['year'], score=score, lang=lang))
+                            sr = MetadataSearchResult(id=program['code'], name='%s | %s' % (program['title'], program['studio']), year=program['year'], thumb=program['thumb'], score=score, lang=lang)
+                            sr.type = "show"
+                            sr.summary = program.get('code')  + " " + program.get('studio') or ""
+                            results.Append(sr)
             def func(show_list):
                 for idx, item in enumerate(show_list):
                     score = min(daum_max_score, item['score'])
