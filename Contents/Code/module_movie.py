@@ -99,6 +99,8 @@ class ModuleMovie(AgentBase):
     # GUID를 MD로 변경할 수는 없다. 일반적으로는 문제되지 않겠지만.......
     def update(self, metadata, media, lang):
         try:
+            section_id = self.get_section_id(media.id)
+
             code = metadata.id.split('|')[0]
             meta_info = None
 
@@ -175,10 +177,9 @@ class ModuleMovie(AgentBase):
                 actor = metadata.producers.new()
                 actor.name = item
 
-            # clear logo, slug
-            code = meta_info.get('code') or ''
-            if code.startswith(("FT", "MT")):
-                self.plex_exclusive(media.id)
+             # clear logo, slug
+            self.plex_exclusive(media.id, section_id)
+            self.update_logo(media.id, section_id, meta_info.get('art') or ())
 
             # art
             templates = {'poster': [metadata.posters, set()], 'landscape' : [metadata.art, set()], 'banner':[metadata.banners, set()]}

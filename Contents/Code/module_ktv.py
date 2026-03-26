@@ -197,7 +197,7 @@ class ModuleKtv(AgentBase):
         except Exception as e:
             Log.Exception(str(e))
 
-    def update_info(self, metadata, media, remote_metadata, data_urls, has_multiple_seasons):
+    def update_info(self, metadata, media, remote_metadata, data_urls, has_multiple_seasons, section_id):
         if media.title:
             metadata.title = media.title.split('|')[0].strip()
         else:
@@ -220,11 +220,8 @@ class ModuleKtv(AgentBase):
             metadata.genres.add(tmp)
 
         # clear logo, slug
-        code = remote_metadata.get('code') or ''
-        if code.startswith(("FT", "MT")):
-            self.plex_exclusive(media.id)
-        else:
-            self.update_logo(media.id, remote_metadata)
+        self.plex_exclusive(media.id, section_id)
+        self.update_logo(media.id, section_id, remote_metadata.get('thumb') or ())
 
         # poster
         poster_templates = {
@@ -512,9 +509,11 @@ class ModuleKtv(AgentBase):
             'theme': set()
         }
 
+        section_id = self.get_section_id(media.id)
+
         # 메타데이터 초기화
         try:
-            self.update_info(metadata, media, main_meta_info, data_urls, has_multiple_seasons)
+            self.update_info(metadata, media, main_meta_info, data_urls, has_multiple_seasons, section_id)
         except Exception:
             Log.Exception("기본 정보 업데이트 실패")
 
@@ -695,11 +694,6 @@ class ModuleKtv(AgentBase):
                     #if not has_multiple_seasons:
                     #    return
 
-                    try:
-                        data = JSON.ObjectFromURL('http://127.0.0.1:32400/library/metadata/%s' % media.id)
-                        section_id = (data.get('MediaContainer') or {}).get('librarySectionID') or "-1"
-                    except Exception:
-                        section_id = "-1"
                     token = self.get_token()
                     for media_season_index in media.seasons:
                         Log.Debug('[%s] media_season_index: %s', media.id, media_season_index)

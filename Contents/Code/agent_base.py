@@ -14,6 +14,8 @@ JSON = JSON # type: Framework.api.parsekit.JSONKit
 Platform = Platform # type: Framework.api.runtimekit.PlatformKit
 Datetime = Datetime # type: Framework.api.utilkit.DatetimeKit
 String = String # type: Framework.api.utilkit.StringKit
+Regex = Regex # type: Framework.api.utilkit.RegexKit
+unicode = unicode
 
 """
 class MetadataSearchResult(XMLObject):
@@ -726,25 +728,13 @@ class AgentBase(object):
 
     def is_yaml_enabled(self, media):
         try:
-            yaml_disabled = Prefs['yaml_disabled'] or ''
-        except Exception:
-            yaml_disabled = ''
-        if yaml_disabled == 'all':
-            return False
-        disabled_libraries = []
-        for section_num in yaml_disabled.split(','):
-            tmp = section_num.strip()
-            try:
-                int(tmp)
-                disabled_libraries.append(tmp)
-            except Exception:
-                pass
-        try:
             section_id = self.get_section_id(media.id)
             if section_id:
+                section_id = int(section_id)
+                disallowed_sections = self.get_user_sections('yaml_disabled_sections', section_id)
                 Log.Debug("[%s] media section id: %s", media.id, section_id)
-                Log.Debug("[%s] yaml disabled libraries: %s", media.id, disabled_libraries)
-                return section_id not in disabled_libraries
+                Log.Debug("[%s] yaml disabled libraries: %s", media.id, disallowed_sections)
+                return section_id not in disallowed_sections
         except Exception as e:
             Log.Exception(str(e))
         return True
@@ -965,12 +955,30 @@ class AgentBase(object):
         return {}
 
 
-    def plex_exclusive(self, metadata_id):
+    def get_user_sections(self, setting_name, default_section=0):
+        user_sections = []
         try:
-            if not Prefs['plex_exclusive']:
-                return
-        except Exception:
+            user_setting = Prefs[setting_name]
+            if user_setting == 'all' and default_section:
+                user_sections.append(default_section)
+            else:
+                for setting in Regex(r'\W').split(user_setting):
+                    try:
+                        user_sections.append(int(setting))
+                    except Exception:
+                        pass
+        except Exception as e:
+            Log.Error("%s 설정 오류 발생: %s", setting_name, str(e))
+        return user_sections
+
+
+    def plex_exclusive(self, metadata_id, section_id):
+        section_id = int(section_id)
+        allowed_slug_sections = self.get_user_sections('plex_exclusive_sections', section_id)
+
+        if section_id not in allowed_slug_sections:
             return
+
         server = None
         apikey = None
         try:
@@ -989,7 +997,7 @@ class AgentBase(object):
             Log.Error("서버 정보가 없어서 요청을 취소합니다: %s", server)
             return
         try:
-            url = "{server}/plex_mate/api/tool/plex_exclusive?metadata_id={metadata_id}".format(
+            url = "{server}/plex_mate/api/tool/plex_exclusive?metadata_id={metadata_id}&manual=true".format(
                 server=server,
                 metadata_id=metadata_id
             )
@@ -997,10 +1005,15 @@ class AgentBase(object):
         except Exception as e:
             Log.Error("플렉스 정보 업데이트 요청 실패: %s", str(e))
 
-    
-    def update_logo(self, metadata_id, remote_metadata):
+
+    def update_logo(self, metadata_id, section_id, image_container):
+        section_id = int(section_id)
+        allowed_logo_sections = self.get_user_sections('clear_logo_sections', section_id)
+        if section_id not in allowed_logo_sections:
+            return
+
         for logo in sorted(
-            (art for art in remote_metadata.get('thumb') or () if art.get('aspect') == 'logo'),
+            (art for art in image_container if art.get('aspect') == 'logo'),
             key=lambda k: k.get('score') or 0,
             reverse=True
         ):
