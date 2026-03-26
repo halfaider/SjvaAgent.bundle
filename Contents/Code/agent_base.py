@@ -962,7 +962,9 @@ class AgentBase(object):
             if user_setting == 'all' and default_section:
                 user_sections.append(default_section)
             else:
-                for setting in Regex(r'\W').split(user_setting):
+                for setting in Regex(r'\W+').split(user_setting or ''):
+                    if not setting:
+                        continue
                     try:
                         user_sections.append(int(setting))
                     except Exception:
