@@ -1,6 +1,10 @@
-VERSION = '2026.03.25'
+VERSION = '2026.03.28'
 
 """
+2026.03.28
+  - slug, clear logo 업데이트 설정을 분리
+  - 매칭 시 검색 목록 일부 수정
+
 2026.03.25
   - TMDB 메타를 사용할 경우 plex_mate에 slug, clear logo 업데이트 요청
   - API 요청 메소드를 POST로 변경
