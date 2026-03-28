@@ -85,6 +85,12 @@
 		"default": ""
 	},
 	{
+		"id": "plex_exclusive_only_tmdb",
+		"label": "TMDB 메타만 slug 주소 업데이트 요청",
+		"type": "bool",
+		"default": "False"
+	},
+	{
 		"id": "plex_exclusive_server",
 		"label": "PLEX_MATE 서버가 기본 서버와 다를 경우 주소와 apikey (구분자: |) 예시: https://ff.domain.com:9999|my_api_key 혹은 https://ff.domain.com:9999",
 		"type": "text",

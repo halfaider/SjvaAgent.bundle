@@ -986,7 +986,6 @@ class AgentBase(object):
         try:
             server = Prefs['server']
             apikey = Prefs['apikey']
-
             plex_exclusive_server = Prefs['plex_exclusive_server']
             alt_server, _, alt_apikey = plex_exclusive_server.partition('|')
             alt_server = alt_server.strip()
@@ -999,9 +998,14 @@ class AgentBase(object):
             Log.Error("서버 정보가 없어서 요청을 취소합니다: %s", server)
             return
         try:
-            url = "{server}/plex_mate/api/tool/plex_exclusive?metadata_id={metadata_id}&manual=true".format(
+            only_tmdb = Prefs['plex_exclusive_only_tmdb']
+        except Exception:
+            only_tmdb = True
+        try:
+            url = "{server}/plex_mate/api/tool/plex_exclusive?metadata_id={metadata_id}&manual=true&only_tmdb={only_tmdb}".format(
                 server=server,
-                metadata_id=metadata_id
+                metadata_id=metadata_id,
+                only_tmdb=only_tmdb
             )
             HTTP.Request(url, timeout=10, values={'apikey': apikey}, method="POST").content
         except Exception as e:
