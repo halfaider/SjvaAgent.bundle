@@ -168,13 +168,13 @@ class ModuleFtv(AgentBase):
                                     metadata_episode.summary = meta_info_episode.get('plot') or ''
                                     try:
                                         valid_names = set()
-                                        arts = meta_info_episode.geT('art')
+                                        arts = meta_info_episode.get('art')
                                         if isinstance(arts, list) and len(arts) > 0:
                                             image_url = arts[-1]
                                             self.set_http_data(image_url, metadata_episode.thumbs, valid_names)
                                         metadata_episode.thumbs.validate_keys(valid_names)
-                                    except Exception: pass
-
+                                    except Exception as e:
+                                        Log.Exception(str(e))
                                     for name in meta_info_episode.get('writer') or ():
                                         metadata_episode.writers.new().name = name
                                     for name in meta_info_episode.get('director') or ():
