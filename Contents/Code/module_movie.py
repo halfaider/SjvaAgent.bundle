@@ -20,7 +20,8 @@ class ModuleMovie(AgentBase):
                     code = code + '|%s' % int(time.time())
                 meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
                 results.Append(meta)
-                #return
+                if not manual:
+                    return
         except Exception as e:
             Log.Exception(str(e))
 
