@@ -18,7 +18,7 @@ class ModuleMovie(AgentBase):
             if code != None and code.startswith('M'):
                 if self.is_include_time_info(media):
                     code = code + '|%s' % int(time.time())
-                meta = MetadataSearchResult(id=code, name=code, year=1900, score=100, thumb="", lang=lang)
+                meta = MetadataSearchResult(id=code, name=code, year=1900, score=200, thumb="", lang=lang)
                 results.Append(meta)
                 #return
         except Exception as e:
