@@ -71,6 +71,15 @@ class AgentBase(object):
     }
 
     token = None
+    
+    site_code_mapping = {
+        'daum': 'KD',
+        'tving': 'KV',
+        'wavve': 'KW',
+        'watcha': 'KX',
+        'tmdb': 'FT'
+    }
+    site_code_ptn = Regex(r'\{(?P<site>[^-]+)-(?P<code>[^}]+)\}', re.IGNORECASE)
 
     def search_result_line(self):
         text = ' ' + ' '.ljust(80, "=") + ' '
@@ -688,6 +697,18 @@ class AgentBase(object):
                 return code
         except Exception as e:
             Log.Exception(str(e))
+
+
+    @classmethod
+    def get_code_from_text(cls, text, movie=False):
+        match = cls.site_code_ptn.search(text)
+        if match:
+            site = match.group('site')
+            code = match.group('code')
+            site_code = cls.site_code_mapping[site.lower()] + code
+            if movie:
+                site_code = site_code.replace('FT', 'MT')
+            return site_code
 
 
     def set_http_data(self, url, container, valid_names, preview=None):
