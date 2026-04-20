@@ -35,9 +35,9 @@ class AgentShow(Agent.TV_Shows):
                 results.Append(meta)
                 return
         ret = self.instance_list['Y'].search(results, media, lang, manual)
-        if ret:
+        if ret and not manual:
             return
-        if ret == False and key == 'Y':
+        if ret == False and key == 'Y' and not manual:
             # 태그에서 읽는 것을 막기 위해 더미로 update타도록..
             # 2022-05-26 tiem.time()이 같을 수 있음..
             results.Append(MetadataSearchResult(id='YD%s'% str(time.time()).replace('.', ''), name=media.title, year='', score=100, thumb='', lang=lang))
